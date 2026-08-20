@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Skills 完整解析</title>
+<style>
+:root[data-theme="dark"] {
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#1e2235;--border:#2d3148;
+  --text:#e2e8f0;--muted:#8892a4;--primary:#818cf8;--primary-light:#1e2048;
+  --success:#34d399;--success-light:#0d2e20;--warning:#fbbf24;--warning-light:#2d2008;
+  --danger:#f87171;--danger-light:#2d1010;--info:#60a5fa;--info-light:#0d1e3d;
+  --orange:#fb923c;--orange-light:#2d1a08;--code-bg:#252840;--code-text:#c4b5fd;
+  --sidebar-bg:#13151f;
+}
+:root[data-theme="light"] {
+  --bg:#f8f9fa;--surface:#fff;--surface2:#f1f5f9;--border:#e2e8f0;
+  --text:#1a202c;--muted:#718096;--primary:#4f46e5;--primary-light:#ede9fe;
+  --success:#16a34a;--success-light:#dcfce7;--warning:#d97706;--warning-light:#fef3c7;
+  --danger:#dc2626;--danger-light:#fee2e2;--info:#2563eb;--info-light:#dbeafe;
+  --orange:#ea580c;--orange-light:#ffedd5;--code-bg:#f1f5f9;--code-text:#5b21b6;
+  --sidebar-bg:#f0f2f5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+button,a{touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.topbar{position:sticky;top:0;z-index:100;min-height:57px;background:var(--surface);border-bottom:1px solid var(--border);padding:6px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.topbar h1{font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap}
+.topbar .meta{font-size:12px;color:var(--muted);flex:1;text-align:center}
+.theme-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 12px;cursor:pointer;font-size:15px;color:var(--text);flex-shrink:0}
+.layout{display:grid;grid-template-columns:230px 1fr;width:100%;min-height:calc(100vh - 57px);max-width:1300px;margin:0 auto}
+.sidebar{background:var(--sidebar-bg);border-right:1px solid var(--border);padding:18px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto}
+.sidebar h3{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sidebar ol{list-style:none}
+.sidebar li{margin-bottom:1px}
+.sidebar a{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 9px;border-radius:5px;text-decoration:none;color:var(--muted);font-size:12.5px;transition:color 0.15s,background 0.15s}
+.sidebar a:hover,.sidebar a.active{color:var(--primary);background:var(--primary-light)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot.critical{background:var(--danger)}.dot.high{background:var(--orange)}.dot.medium{background:var(--warning)}
+.sidebar-sep{margin:14px 0 10px}
+main{min-width:0;padding:28px 36px;max-width:880px}
+.attack-card{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;margin-bottom:28px;scroll-margin-top:72px}
+.attack-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.attack-num{background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px}
+.attack-title h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.attack-title .sub{font-size:12.5px;color:var(--muted)}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto;flex-shrink:0}
+.badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge.critical{background:var(--danger-light);color:var(--danger)}
+.badge.high{background:var(--orange-light);color:var(--orange)}
+.badge.medium{background:var(--warning-light);color:var(--warning)}
+.badge.network{background:var(--info-light);color:var(--info)}
+.badge.app{background:var(--primary-light);color:var(--primary)}
+.badge.browser{background:var(--success-light);color:var(--success)}
+.subtypes{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px 38px}
+.subtype{padding:1px 8px;border-radius:4px;font-size:11px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.desc{color:var(--muted);font-size:13.5px;margin:0 0 18px 38px;line-height:1.75}
+.desc strong{color:var(--text)}
+.cs-title{font-size:12.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.cs-title.vuln{color:var(--danger)}.cs-title.attack{color:var(--warning)}.cs-title.defense{color:var(--success)}.cs-title.note{color:var(--info)}
+.cbw{position:relative;min-width:0;margin-bottom:10px}
+.code-lbl{position:absolute;top:8px;right:46px;font-size:10px;color:var(--muted);font-family:monospace;z-index:1}
+.copy-btn{position:absolute;top:6px;right:7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:44px;min-height:32px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--muted);z-index:1}
+.copy-btn:hover{color:var(--text)}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;max-width:100%;padding:14px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;font-size:12.5px;line-height:1.55;margin:0}
+code{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;color:var(--code-text)}
+.kw{color:#818cf8;font-weight:600}[data-theme="light"] .kw{color:#4f46e5}
+.st{color:#86efac}[data-theme="light"] .st{color:#15803d}
+.cm{color:#64748b;font-style:italic}
+.dec{color:#fb923c}[data-theme="light"] .dec{color:#c2410c}
+.bi{color:#67e8f9}[data-theme="light"] .bi{color:#0284c7}
+.nu{color:#fbbf24}[data-theme="light"] .nu{color:#b45309}
+.note-box{background:var(--info-light);border:1px solid var(--info);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--info);margin-bottom:14px}
+.warn-box{background:var(--warning-light);border:1px solid var(--warning);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--warning);margin-bottom:14px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.section-hdr{margin:36px 0 14px}.section-hdr h2{font-size:18px;font-weight:700;margin-bottom:3px}.section-hdr p{font-size:13px;color:var(--muted)}
+.table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--surface2);padding:9px 11px;text-align:left;font-weight:600;border:1px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap}
+td{padding:9px 11px;border:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface2)}
+.chk{color:var(--success)}.prt{color:var(--warning)}.crs{color:var(--danger)}
+footer{text-align:center;padding:20px;color:var(--muted);font-size:11px;border-top:1px solid var(--border);margin-top:20px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ===== RWD ===== */
+.menu-btn{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 10px;cursor:pointer;font-size:18px;color:var(--text);flex-shrink:0;line-height:1}
+.sidebar-overlay{display:none;position:fixed;top:57px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:90}
+.sidebar-overlay.open{display:block}
+
+/* Tablet */
+@media(max-width:1024px){
+  .layout{grid-template-columns:200px 1fr}
+  main{padding:20px 24px}
+  .topbar .meta{display:none}
+}
+
+/* Mobile */
+@media(max-width:768px){
+  html{scroll-padding-top:64px}
+  body.nav-open{overflow:hidden}
+  .menu-btn{display:block}
+  .topbar{padding:6px 12px;gap:10px}
+  .topbar h1{font-size:14px;line-height:1.25;white-space:normal;min-width:0;flex:1}
+  .topbar .meta{display:none}
+  .theme-btn{padding:0;font-size:16px}
+  .layout{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;top:57px;left:-84vw;width:min(82vw,320px);
+    height:calc(100vh - 57px);z-index:95;padding:14px;
+    transition:left 0.25s ease;border-right:1px solid var(--border)
+  }
+  .sidebar.open{left:0}
+  .sidebar-overlay{top:57px}
+  .sidebar a{min-height:44px;padding:9px 10px;font-size:14px}
+  main{padding:14px 12px;max-width:100%;width:100%}
+  .attack-card{border-radius:10px;padding:14px;margin-bottom:16px;scroll-margin-top:64px}
+  .attack-header{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px 10px}
+  .attack-num{min-width:30px;height:30px;margin-top:0}
+  .attack-title{min-width:0}
+  .attack-title h2{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+  .attack-title .sub{font-size:13px;line-height:1.5}
+  .badges{grid-column:1 / -1;margin-left:0;width:100%;gap:8px}
+  .badge{padding:4px 10px;font-size:11.5px}
+  .desc{margin-left:0;font-size:16px;line-height:1.7}
+  .subtypes{margin-left:0;gap:8px}
+  .subtype{padding:4px 8px;font-size:12px}
+  .cs-title{font-size:14px;line-height:1.45;align-items:flex-start}
+  .cbw{padding-top:48px}
+  .code-lbl{display:none}
+  .copy-btn{top:0;right:0;min-height:44px;padding:0 12px;font-size:12px}
+  pre{font-size:12px;padding:12px;line-height:1.6}
+  .note-box,.warn-box{font-size:14px;line-height:1.6}
+  .section-hdr h2{font-size:16px}
+  .section-hdr p{font-size:14px}
+  .table-wrap{margin-left:-2px;margin-right:-2px;border:1px solid var(--border);border-radius:8px}
+  table{min-width:760px;font-size:12px}
+  th,td{padding:8px 9px}
+  footer{padding:18px 10px;font-size:12px}
+}
+
+@media(max-width:420px){
+  .topbar h1{font-size:13px}
+  main{padding:10px}
+  .attack-card{padding:12px}
+  pre{font-size:11.5px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="menu-btn" onclick="toggleSidebar()" id="menuBtn" aria-label="開啟選單" aria-expanded="false" aria-controls="siteSidebar">☰</button>
+  <h1>🧩 OpenClaw Skills 完整解析</h1>
+  <span class="meta">2026-08-20 &nbsp;｜&nbsp; SKILL.md / 載入優先序 / 觸發機制 / Workshop / ClawHub &nbsp;｜&nbsp; 依官方文件整理</span>
+  <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
+</header>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="layout">
+<nav class="sidebar" id="siteSidebar">
+  <h3>目錄</h3>
+  <ol>
+    <li><a href="#what"><span class="dot critical"></span>Skill 是什麼</a></li>
+    <li><a href="#structure"><span class="dot critical"></span>SKILL.md 結構</a></li>
+    <li><a href="#priority"><span class="dot high"></span>六層載入優先序</a></li>
+    <li><a href="#trigger"><span class="dot critical"></span>三種觸發路徑</a></li>
+    <li><a href="#gating"><span class="dot high"></span>條件式 gating</a></li>
+    <li><a href="#basedir"><span class="dot medium"></span>{baseDir} 與附帶檔案</a></li>
+    <li><a href="#cost"><span class="dot high"></span>Token 成本與快照</a></li>
+    <li><a href="#visibility"><span class="dot critical"></span>可見性與 allow list</a></li>
+    <li><a href="#env"><span class="dot critical"></span>環境變數注入陷阱</a></li>
+    <li><a href="#config"><span class="dot medium"></span>openclaw.json 設定</a></li>
+    <li><a href="#workshop"><span class="dot high"></span>Skill Workshop</a></li>
+    <li><a href="#cli"><span class="dot medium"></span>CLI 指令</a></li>
+    <li><a href="#clawhub"><span class="dot medium"></span>ClawHub 發布規範</a></li>
+    <li><a href="#practice"><span class="dot high"></span>撰寫最佳實務</a></li>
+  </ol>
+  <div class="sidebar-sep">
+    <h3>快速跳轉</h3>
+    <ol><li><a href="#comparison">📊 比較總表</a></li></ol>
+  </div>
+</nav>
+<main>
+
+<!-- 1 -->
+<div class="attack-card" id="what">
+  <div class="attack-header">
+    <div class="attack-num">1</div>
+    <div class="attack-title">
+      <h2>Skill 是什麼 — 教 Agent「什麼時候該用哪個工具」</h2>
+      <div class="sub">不是程式碼，是一份會被載入 system prompt 的 Markdown 指示檔</div>
+    </div>
+    <div class="badges"><span class="badge critical">基礎</span><span class="badge app">概念</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">Markdown 指示檔</span><span class="subtype">SKILL.md</span><span class="subtype">漸進式揭露</span></div>
+  <p class="desc">OpenClaw 的 Skill 是<strong>Markdown 指示檔，用來教 Agent 什麼時候、以及如何使用工具</strong>。每個 Skill 是一個目錄，裡面必須有一份 <code>SKILL.md</code>（含 YAML frontmatter 與 Markdown 內容）。</p>
+  <p class="desc">關鍵理解在於<strong>它和 plugin / MCP 的分工</strong>：plugin 與 MCP 提供「能力」（真正可呼叫的工具），Skill 提供「判斷與流程」——什麼情況該啟動、要按什麼順序做、輸出要長什麼樣、哪些邊界不能踩。所以一個 Skill 常常一行程式碼都沒有，卻能大幅改變 Agent 的行為品質。</p>
+  <div class="cs-title note">📐 運作模型：只有描述進 prompt，內文用到才讀</div>
+  <p class="desc">Skill 採用<strong>漸進式揭露（progressive disclosure）</strong>：平常只有 <code>name</code> 與 <code>description</code> 被編進 system prompt（每個 Skill 大約 <strong>97 個字元 + 欄位長度，約 24 tokens</strong>），Agent 判斷相關時才去讀完整的 <code>SKILL.md</code> 與附帶檔案。這是它能「裝很多但不吃 context」的原因。</p>
+  <div class="note-box">ℹ️ <strong>推論結果：<code>description</code> 是整個 Skill 最重要的一行。</strong>它是唯一常駐 prompt 的內容，也是模型判斷「要不要載入我」的唯一依據。內文寫得再好，description 沒寫對就不會被觸發。</div>
+</div>
+
+<!-- 2 -->
+<div class="attack-card" id="structure">
+  <div class="attack-header">
+    <div class="attack-num">2</div>
+    <div class="attack-title">
+      <h2>SKILL.md 結構與 frontmatter 欄位</h2>
+      <div class="sub">兩個必填欄位就能跑，其餘欄位決定它怎麼被觸發</div>
+    </div>
+    <div class="badges"><span class="badge critical">必讀</span><span class="badge browser">格式</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">name</span><span class="subtype">description</span><span class="subtype">user-invocable</span><span class="subtype">command-dispatch</span></div>
+
+  <div class="cs-title defense">✅ 最小可用 Skill</div>
+  <div class="cbw">
+    <span class="code-lbl">~/.openclaw/workspace/skills/my-skill/SKILL.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+---
+name: my-skill
+description: What this skill does
+---
+
+Instructions for when and how to use tools...
+</code></pre>
+  </div>
+
+  <div class="cs-title note">🏷️ 必填欄位的規則</div>
+  <p class="desc"><code>name</code>：<strong>小寫 slug</strong>，只允許英文字母、數字與連字號（ClawHub 規範為 1–64 字元）。<code>description</code>：<strong>單行、建議 160 字元以內</strong>——這是 Agent 看得到的說明，也用於 UI 摘要與搜尋。</p>
+
+  <div class="cs-title attack">⚙️ 控制觸發行為的選用欄位</div>
+  <div class="cbw">
+    <span class="code-lbl">frontmatter</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+---
+name: deploy-stage
+description: 部署到 stage 環境並監控 CI pipeline
+version: 1.2.0
+user-invocable: true            # 是否顯示為 slash command（預設 true）
+disable-model-invocation: false # true = 不編進 prompt，模型不會自己叫它
+command-dispatch: tool          # 直接路由到工具，跳過模型層
+metadata:
+  openclaw:
+    requires:
+      bins: ["glab"]
+      env: ["GITLAB_TOKEN"]
+---
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong><code>user-invocable</code> 與 <code>disable-model-invocation</code> 是兩個獨立開關</strong>，組合起來有四種行為：兩者皆預設 = 模型可自己觸發 + 也能打 slash command；<code>disable-model-invocation: true</code> = <strong>純手動指令</strong>（不佔 prompt token）；<code>user-invocable: false</code> = <strong>只有模型能用</strong>，使用者打不出來。</div>
+</div>
+
+<!-- 3 -->
+<div class="attack-card" id="priority">
+  <div class="attack-header">
+    <div class="attack-num">3</div>
+    <div class="attack-title">
+      <h2>六層載入優先序</h2>
+      <div class="sub">同名 Skill 時，優先序高的來源勝出（不合併）</div>
+    </div>
+    <div class="badges"><span class="badge high">重要</span><span class="badge app">路徑</span></div>
+  </div>
+  <div class="cbw">
+    <span class="code-lbl">由高到低</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+1. Workspace skills        &lt;workspace&gt;/skills
+2. Project agent skills    &lt;workspace&gt;/.agents/skills
+3. Personal agent skills   ~/.agents/skills
+4. Managed skills          ~/.openclaw/skills      ← openclaw skills install 的預設落點
+5. Built-in skills         隨安裝內建
+6. Extra directories       skills.load.extraDirs + plugin 提供的 skills
+</code></pre>
+  </div>
+  <p class="desc">當同一個 Skill 名稱出現在多個位置時，<strong>優先序最高的來源勝出</strong>。這給了一個實用手法：想改內建或已安裝的 Skill，不要去改原檔，<strong>在 workspace 建一個同名 Skill 覆蓋它</strong>——升級不會被蓋掉，也隨時可以刪掉還原。</p>
+  <div class="note-box">ℹ️ <strong>層級的用意：</strong>1–2 是「這個專案／這個 Agent 專屬」，3 是「我個人到處都想用」，4 是「從 ClawHub 裝來的」，5–6 是系統與外掛提供的底層。愈靠近工作現場，優先序愈高。</div>
+</div>
+
+<!-- 4 -->
+<div class="attack-card" id="trigger">
+  <div class="attack-header">
+    <div class="attack-num">4</div>
+    <div class="attack-title">
+      <h2>三種觸發路徑 — 模型自主、slash command、直達工具</h2>
+      <div class="sub"><code>command-dispatch: tool</code> 是「確定性執行」的關鍵</div>
+    </div>
+    <div class="badges"><span class="badge critical">核心</span><span class="badge browser">行為</span></div>
+  </div>
+
+  <div class="cs-title note">① 模型自主觸發</div>
+  <p class="desc">Skill 的 name/description 被編進 system prompt，模型自行判斷相關時載入並依指示執行。適合「使用者不會記得有這個功能」的情境。</p>
+
+  <div class="cs-title note">② Slash command（user-invocable）</div>
+  <p class="desc">可被使用者呼叫的 Skill 會<strong>自動暴露成 slash command</strong>。兩種入口：註冊成直接指令（例如 <code>/prose</code>），或走通用入口 <code>/skill &lt;name&gt; [input]</code>。原生指令註冊由 <code>commands.nativeSkills</code> 控制（Discord / Telegram 上會自動註冊原生指令）。</p>
+
+  <div class="cs-title defense">③ command-dispatch: tool — 跳過模型層</div>
+  <p class="desc">宣告 <code>command-dispatch: tool</code> 的 Skill 會<strong>直接、確定性地路由到工具，繞過模型層</strong>。這是「這個指令必須每次都做同一件事」的正確做法——不讓模型有詮釋空間，也省下一輪推論。</p>
+  <div class="warn-box">⚠️ <strong>別把需要判斷的流程設成 <code>command-dispatch: tool</code>。</strong>它的價值正是「沒有判斷」；需要看情況調整步驟的 Skill 應該留給模型執行。</div>
+</div>
+
+<!-- 5 -->
+<div class="attack-card" id="gating">
+  <div class="attack-header">
+    <div class="attack-num">5</div>
+    <div class="attack-title">
+      <h2>條件式 gating — 依賴不齊就不載入</h2>
+      <div class="sub"><code>metadata.openclaw.requires</code>：bins / env / config 三種條件</div>
+    </div>
+    <div class="badges"><span class="badge high">實用</span><span class="badge network">環境</span></div>
+  </div>
+  <div class="cbw">
+    <span class="code-lbl">SKILL.md frontmatter</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+metadata:
+  openclaw:
+    requires:
+      bins:    ["required-tool"]   # 必須存在於 PATH
+      anyBins: ["docker", "podman"] # 至少一個存在即可
+      env:     ["API_KEY"]          # 環境變數必須存在
+      config:  ["feature.enabled"]  # 設定路徑必須為 truthy
+    envVars:      # 詳細宣告，可標記 required
+      - name: API_KEY
+        required: true
+    primaryEnv: API_KEY   # 主要認證變數
+</code></pre>
+  </div>
+  <p class="desc">Skill <strong>只有在所有列出的執行檔存在於 PATH、環境變數齊備、且設定路徑為 truthy 時才會載入</strong>。</p>
+  <div class="note-box">ℹ️ <strong>gating 的真正好處是省 prompt。</strong>沒裝 <code>glab</code> 的機器上，GitLab 相關 Skill 完全不會出現在 system prompt 裡——既不浪費 token，也不會讓模型建議一個根本跑不起來的流程。</div>
+</div>
+
+<!-- 6 -->
+<div class="attack-card" id="basedir">
+  <div class="attack-header">
+    <div class="attack-num">6</div>
+    <div class="attack-title">
+      <h2>{baseDir} 與附帶檔案</h2>
+      <div class="sub">Skill 目錄可以放範本、參考文件與腳本，用 token 引用不寫死路徑</div>
+    </div>
+    <div class="badges"><span class="badge medium">技巧</span><span class="badge app">結構</span></div>
+  </div>
+  <p class="desc">Skill 目錄除了 <code>SKILL.md</code>（也接受舊名 <code>skills.md</code>）之外，可以放<strong>任意支援檔案</strong>：HTML 範本、參考資料、腳本，並可用 <code>.clawhubignore</code> / <code>.gitignore</code> 排除不想發布的檔案。</p>
+  <p class="desc">引用這些檔案時用 <code>{baseDir}</code> token，<strong>它會指向 Skill 自己的目錄，不需要寫死絕對路徑</strong>——這讓同一份 Skill 在不同機器、不同安裝位置都能正常運作。</p>
+  <div class="cbw">
+    <span class="code-lbl">SKILL.md 內文</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+產生報告前先讀取範本作為結構基礎：
+
+| 模板 | 路徑 |
+|------|------|
+| 分析報告 | {baseDir}/assets/template-analysis-report.html |
+| QA 報告  | {baseDir}/assets/template-qa-report.html |
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>這正是漸進式揭露的第三層：</strong>description 在 prompt（永遠載入）→ SKILL.md 內文（相關時載入）→ 附帶檔案（真正要用時才讀）。大範本、長參考資料都該放在第三層。</div>
+</div>
+
+<!-- 7 -->
+<div class="attack-card" id="cost">
+  <div class="attack-header">
+    <div class="attack-num">7</div>
+    <div class="attack-title">
+      <h2>Token 成本、快照與刷新時機</h2>
+      <div class="sub">Skill 在 session 開場被快照；改了檔案不一定立刻生效</div>
+    </div>
+    <div class="badges"><span class="badge high">重要</span><span class="badge app">執行期</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">約 24 tokens / skill</span><span class="subtype">session 開場快照</span><span class="subtype">skill watcher</span></div>
+  <p class="desc"><strong>成本：</strong>每個符合條件的 Skill 為 system prompt 增加約 <strong>97 個字元加上欄位長度，換算大約 24 tokens</strong>（未計欄位長度）。所以裝 50 個 Skill 大約是一千多 tokens 的固定開銷——不算貴，但這也解釋了為什麼 description 要精簡、以及為什麼要用 gating 把不相關的 Skill 擋掉。</p>
+  <p class="desc"><strong>快照：</strong>Skill 在 <strong>session 開始時被快照，並在該 session 後續所有輪次重複使用</strong>。單純改檔案，變更會在<strong>下一個新 session</strong> 生效。</p>
+  <div class="cs-title defense">✅ session 進行中會刷新的兩種情況</div>
+  <div class="cbw">
+    <span class="code-lbl">刷新條件</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+1. skill watcher 偵測到 SKILL.md 變更   （需 skills.load.watch 啟用）
+2. 有新的符合條件的遠端節點連線
+</code></pre>
+  </div>
+  <div class="warn-box">⚠️ <strong>開發 Skill 時最常見的困惑就在這裡：</strong>改完 SKILL.md 卻發現行為沒變。先確認 <code>skills.load.watch</code> 是否啟用，否則就開一個新 session 再測。</div>
+</div>
+
+<!-- 8 -->
+<div class="attack-card" id="visibility">
+  <div class="attack-header">
+    <div class="attack-num">8</div>
+    <div class="attack-title">
+      <h2>可見性與 allow list — 哪個 Agent 看得到哪些 Skill</h2>
+      <div class="sub">非空清單「完全取代」預設值，不是合併</div>
+    </div>
+    <div class="badges"><span class="badge critical">易踩雷</span><span class="badge network">設定</span></div>
+  </div>
+  <p class="desc"><strong>Skill 的可見性和它放在哪裡是兩件獨立的事。</strong>放進 workspace 不代表每個 Agent 都會看到——實際可見範圍由 allow list 決定。</p>
+  <div class="cbw">
+    <span class="code-lbl">openclaw.json</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+agents: {
+  defaults: { skills: ["github", "weather"] },
+  list: [
+    { id: "writer" },              // 繼承 defaults
+    { id: "locked-down", skills: [] }  // 完全沒有 skill
+  ]
+}
+</code></pre>
+  </div>
+  <div class="warn-box">⚠️ <strong>非空的 agent skill 清單會「完全取代」defaults，不會合併。</strong>想在某個 Agent 上「加一個」Skill，必須把 defaults 的內容整份重列一次，否則其他 Skill 會靜默消失。</div>
+  <div class="warn-box">⚠️ <strong>allow list 是可見性過濾器，不是 shell 執行的授權邊界。</strong>官方明確標註了這點——想限制執行權限要用 sandbox 與工具政策，不能靠隱藏 Skill 達成安全。</div>
+</div>
+
+<!-- 9 -->
+<div class="attack-card" id="env">
+  <div class="attack-header">
+    <div class="attack-num">9</div>
+    <div class="attack-title">
+      <h2>環境變數注入 — 以及 sandbox 陷阱</h2>
+      <div class="sub">注入只作用於 host 執行，sandbox 內要另外設定</div>
+    </div>
+    <div class="badges"><span class="badge critical">安全</span><span class="badge network">執行期</span></div>
+  </div>
+  <div class="cs-title note">🔄 執行時的四個步驟</div>
+  <div class="cbw">
+    <span class="code-lbl">Skill 執行流程</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+1. 解析該 Agent 的有效 skill 清單
+2. 把 skills.entries.&lt;key&gt;.env 與 apiKey 注入行程環境
+3. 把符合條件的 skills 編進 system prompt
+4. 執行結束後還原原本的環境
+</code></pre>
+  </div>
+  <div class="warn-box">⚠️ <strong>環境變數注入僅限於 host agent 執行，不含 sandbox。</strong>若 Skill 跑在沙箱裡，憑證要另外設定在 <code>agents.defaults.sandbox.docker.env</code> 之下。這是「本機測得通、上了沙箱就 401」最常見的原因。</div>
+</div>
+
+<!-- 10 -->
+<div class="attack-card" id="config">
+  <div class="attack-header">
+    <div class="attack-num">10</div>
+    <div class="attack-title">
+      <h2>openclaw.json 的 skills 設定</h2>
+      <div class="sub">load / install / workshop 三組設定</div>
+    </div>
+    <div class="badges"><span class="badge medium">參考</span><span class="badge app">設定</span></div>
+  </div>
+  <div class="cbw">
+    <span class="code-lbl">~/.openclaw/openclaw.json</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+skills: {
+  load: {
+    extraDirs: ["/path/to/more/skills"],  // 額外掃描目錄，優先序最低
+    allowSymlinkTargets: ["/trusted/dir"], // 允許 symlink skill 解析的信任目錄
+    watch: true                            // SKILL.md 變更時自動刷新
+  },
+  install: {
+    preferBrew: true,          // 可用時優先使用 Homebrew
+    nodeManager: "pnpm",       // npm | pnpm | yarn | bun
+    allowUploadedArchives: false // 是否允許安裝私有 zip 封存
+  },
+  workshop: {
+    autonomous: { enabled: false },  // 是否允許 agent 自主建立提案
+    approvalPolicy: "auto",          // auto（agent 主動）| pending（需操作者核准）
+    maxPending: 20,                  // 待處理提案上限（1–200）
+    maxSkillBytes: 40000             // 提案大小上限（1024–200000 bytes）
+  }
+}
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <code>allowSymlinkTargets</code> 值得注意：它意味著 <strong>symlink 進來的 Skill 預設不被信任</strong>，必須明確把目標目錄列為信任來源——這是防止「把一個外部目錄 link 進 skills/ 就取得執行指示權」的防線。</div>
+</div>
+
+<!-- 11 -->
+<div class="attack-card" id="workshop">
+  <div class="attack-header">
+    <div class="attack-num">11</div>
+    <div class="attack-title">
+      <h2>Skill Workshop — 讓 Agent 提案，而不是直接寫檔</h2>
+      <div class="sub">產出 PROPOSAL.md，經核准才成為正式 SKILL.md</div>
+    </div>
+    <div class="badges"><span class="badge high">治理</span><span class="badge browser">流程</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">/learn</span><span class="subtype">PROPOSAL.md</span><span class="subtype">hash binding</span><span class="subtype">skill_workshop 工具</span></div>
+  <p class="desc">Skill Workshop 是 OpenClaw 用來<strong>以「提案」而非「直接寫檔」方式建立與更新 workspace Skill</strong> 的受控機制。Agent 產生的內容會存成 <strong><code>PROPOSAL.md</code> 草稿而不是 <code>SKILL.md</code></strong>；只有在提案被套用之後，它才會成為生效的 Skill。</p>
+
+  <div class="cs-title note">🔄 提案生命週期</div>
+  <div class="cbw">
+    <span class="code-lbl">狀態流</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+pending ──→ applied      （套用，成為正式 Skill）
+        ├─→ rejected     （否決）
+        └─→ quarantined  （隔離）
+
+stale    ← 30 天未使用，或目標 Skill 在套用前已被改動（hash 不符）
+archived ← 90 天
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ 四項安全設計</div>
+  <p class="desc"><strong>Hash binding：</strong>更新提案會綁定當前目標的 hash，若正式 Skill 在套用前被改動，提案自動變成 stale，避免蓋掉別人的修改。<strong>可回復：</strong>rollback 中繼資料在檔案變更之前寫入。<strong>範圍受限：</strong>只能修改 workspace Skill，<strong>永遠不會動到內建或系統 Skill</strong>。<strong>不可繞道：</strong>系統會阻止 Agent 用直接檔案操作跳過提案流程。</p>
+
+  <div class="cs-title attack">🖥️ 三種使用入口</div>
+  <div class="cbw">
+    <span class="code-lbl">chat / CLI / tool</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain"># 對話中
+/learn   或直接請 Agent 學一個新技能
+
+# CLI
+openclaw skills workshop propose-create
+openclaw skills workshop propose-update
+openclaw skills workshop apply
+openclaw skills workshop reject
+openclaw skills workshop quarantine
+openclaw skills workshop list      # 檢視 agent 提案
+
+# Agent 工具
+skill_workshop  （actions: create / revise / inspect / apply）
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>approvalPolicy 的兩種取值：</strong><code>"auto"</code> 讓 Agent 主動的操作略過額外詢問；<code>"pending"</code> 則<strong>要求操作者核准</strong>。配合 <code>autonomous.enabled: false</code>（預設）就能維持「Agent 可以建議，但人決定」的關係。</div>
+</div>
+
+<!-- 12 -->
+<div class="attack-card" id="cli">
+  <div class="attack-header">
+    <div class="attack-num">12</div>
+    <div class="attack-title">
+      <h2>openclaw skills CLI</h2>
+      <div class="sub">搜尋、安裝、驗證、診斷</div>
+    </div>
+    <div class="badges"><span class="badge medium">參考</span><span class="badge app">CLI</span></div>
+  </div>
+  <div class="cbw">
+    <span class="code-lbl">常用指令</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain"># 檢視
+openclaw skills list                 # 列出可用 skills
+openclaw skills info &lt;name&gt;          # 檢視單一 skill
+openclaw skills check                # 診斷：哪些已安裝 skill 真的可執行
+openclaw skills verify               # 印出 ClawHub 的 clawhub.skill.verify.v1 JSON
+
+# 搜尋與安裝（三種來源）
+openclaw skills search &lt;keyword&gt;
+openclaw skills install @owner/&lt;slug&gt;            # ClawHub
+openclaw skills install git:owner/repo[@ref]     # Git
+openclaw skills install ./path/to/skill          # 本機目錄
+
+# 更新
+openclaw skills update               # 更新已追蹤的 ClawHub skills
+
+# 常用旗標
+--global                     # 安裝到全域位置
+--force                      # 強制覆寫
+--acknowledge-clawhub-risk   # 確認第三方 skill 風險
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong><code>openclaw skills check</code> 是被低估的指令：</strong><code>list</code> 只告訴你「有這個 Skill」，<code>check</code> 才告訴你「它的 requires 條件是否滿足、能不能真的跑」。裝完新 Skill 沒反應時第一個該跑的就是它。</div>
+</div>
+
+<!-- 13 -->
+<div class="attack-card" id="clawhub">
+  <div class="attack-header">
+    <div class="attack-num">13</div>
+    <div class="attack-title">
+      <h2>ClawHub 發布規範</h2>
+      <div class="sub">MIT-0、50MB、禁止付費 Skill</div>
+    </div>
+    <div class="badges"><span class="badge medium">發布</span><span class="badge browser">生態</span></div>
+  </div>
+  <p class="desc"><strong>目錄要求：</strong>必填 <code>SKILL.md</code>（接受舊名 <code>skills.md</code>），選用支援檔案、<code>.clawhubignore</code>、<code>.gitignore</code>。發布時<strong>伺服器會從 frontmatter 擷取中繼資料</strong>，所以 <code>name</code> / <code>description</code> / <code>version</code>（語意化版號）必須正確。</p>
+  <p class="desc"><strong>大小限制：</strong>封裝包上限 <strong>50MB</strong>；文字分析涵蓋 SKILL.md 加上約 40 個 UTF-8 檔案（best effort）。所有檔案類型都接受，安全掃描會拿到完整封裝內容。</p>
+  <div class="warn-box">⚠️ <strong>授權是 MIT-0，且不可協商。</strong>所有發布的 Skill 一律採用 MIT-0——<strong>任何人皆可使用、修改及重新散布</strong>。ClawHub 明文禁止付費 Skill、定價中繼資料與付費牆。不想被自由散布的內容就不要發上去。</div>
+  <p class="desc">要發布可安裝獨立 CLI（<code>npm install -g clawhub</code>），或透過 Skill Workshop 提案交由操作者審核後再實施。</p>
+</div>
+
+<!-- 14 -->
+<div class="attack-card" id="practice">
+  <div class="attack-header">
+    <div class="attack-num">14</div>
+    <div class="attack-title">
+      <h2>撰寫最佳實務與常見錯誤</h2>
+      <div class="sub">官方原則：「告訴模型要做什麼，不是怎麼當 AI」</div>
+    </div>
+    <div class="badges"><span class="badge high">實務</span><span class="badge app">建議</span></div>
+  </div>
+
+  <div class="cs-title defense">✅ 建立一個 Skill 的四步流程</div>
+  <div class="cbw">
+    <span class="code-lbl">workflow</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+1. 建目錄     mkdir -p ~/.openclaw/workspace/skills/skill-name
+2. 寫 SKILL.md（至少 name + description）
+3. 確認載入   openclaw skills list
+4. 實測       openclaw agent --message "..."
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ 該做的</div>
+  <p class="desc"><strong>指示簡短</strong>——官方原則是「告訴模型<em>要做什麼</em>，不是怎麼當 AI」。<strong>description 寫觸發條件</strong>，把使用者可能說的話寫進去（含同義詞、常見說法），因為它是唯一常駐 prompt 的判斷依據。<strong>大內容外移</strong>到附帶檔案並用 <code>{baseDir}</code> 引用。<strong>先在本機測過再分享</strong>。</p>
+
+  <div class="cs-title vuln">⚠️ 該避免的</div>
+  <p class="desc"><strong>使用 <code>exec</code> 時務必防注入</strong>——官方明確警示要避免未信任輸入造成任意命令執行。<strong>不要寫死絕對路徑</strong>（用 <code>{baseDir}</code>）。<strong>不要把憑證寫進 SKILL.md</strong>（用 <code>requires.env</code> 宣告，值從環境注入）。<strong>不要用 allow list 當安全邊界</strong>（它只是可見性過濾器）。</p>
+
+  <div class="note-box">ℹ️ <strong>一個判斷 Skill 該不該存在的問題：</strong>「這件事我是不是每次都要重新解釋一遍？」如果是，就該寫成 Skill；如果只是這次任務的特殊要求，寫在對話裡就好。反覆出現的流程 → Skill；一次性的規則 → prompt；永久性的權限與紅線 → <code>AGENTS.md</code>。</div>
+</div>
+
+<!-- 比較總表 -->
+<div class="section-hdr" id="comparison">
+  <h2>📊 比較總表</h2>
+  <p>frontmatter 欄位一覽 & 載入位置優先序</p>
+</div>
+<div class="attack-card" style="padding:20px">
+  <div class="cs-title note">SKILL.md frontmatter 欄位</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>欄位</th><th>必填</th><th>用途</th><th>預設 / 規則</th></tr></thead>
+      <tbody>
+        <tr><td><code>name</code></td><td class="chk">✔</td><td>Skill 識別名，也用於 allow list</td><td>小寫字母/數字/連字號，1–64 字元</td></tr>
+        <tr><td><code>description</code></td><td class="chk">✔</td><td>Agent 判斷是否觸發的唯一依據；UI 摘要與搜尋</td><td>單行，建議 &lt; 160 字元</td></tr>
+        <tr><td><code>version</code></td><td class="prt">發布時</td><td>ClawHub 版本管理</td><td>語意化版號</td></tr>
+        <tr><td><code>user-invocable</code></td><td class="crs">✘</td><td>是否暴露為 slash command</td><td>預設 <code>true</code></td></tr>
+        <tr><td><code>disable-model-invocation</code></td><td class="crs">✘</td><td>阻止編入 prompt，模型不會自行觸發</td><td>預設 <code>false</code></td></tr>
+        <tr><td><code>command-dispatch</code></td><td class="crs">✘</td><td>設為 <code>"tool"</code> 時直達工具、跳過模型</td><td>未設 = 走模型</td></tr>
+        <tr><td><code>metadata.openclaw.requires</code></td><td class="crs">✘</td><td>條件式 gating：<code>bins</code> / <code>anyBins</code> / <code>env</code> / <code>config</code></td><td>條件不滿足則不載入</td></tr>
+        <tr><td><code>metadata.openclaw.envVars</code></td><td class="crs">✘</td><td>環境變數詳細宣告（可標 <code>required</code>）</td><td>—</td></tr>
+        <tr><td><code>metadata.openclaw.primaryEnv</code></td><td class="crs">✘</td><td>主要認證變數</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="divider"></div>
+  <div class="cs-title note">載入位置優先序（高 → 低）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>來源</th><th>路徑</th><th>典型用途</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Workspace skills</td><td><code>&lt;workspace&gt;/skills</code></td><td>這個 Agent／專案專屬</td></tr>
+        <tr><td>2</td><td>Project agent skills</td><td><code>&lt;workspace&gt;/.agents/skills</code></td><td>專案層級共用</td></tr>
+        <tr><td>3</td><td>Personal agent skills</td><td><code>~/.agents/skills</code></td><td>個人到處通用</td></tr>
+        <tr><td>4</td><td>Managed skills</td><td><code>~/.openclaw/skills</code></td><td>ClawHub 安裝落點</td></tr>
+        <tr><td>5</td><td>Built-in skills</td><td>隨安裝內建</td><td>系統提供</td></tr>
+        <tr><td>6</td><td>Extra directories</td><td><code>skills.load.extraDirs</code> + plugin</td><td>外掛與額外目錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="attack-card">
+  <div class="cs-title note">📚 資料來源</div>
+  <p class="desc">
+    OpenClaw 官方文件（繁體中文版）：<br>
+    ・<code>docs.openclaw.ai/zh-TW/tools/skills</code> — 載入優先序、frontmatter、快照與 token 成本<br>
+    ・<code>docs.openclaw.ai/zh-TW/tools/creating-skills</code> — 建立流程、必填欄位規則、最佳實務<br>
+    ・<code>docs.openclaw.ai/zh-TW/tools/skills-config</code> — <code>skills.load / install / workshop</code> 設定<br>
+    ・<code>docs.openclaw.ai/zh-TW/tools/skill-workshop</code> — 提案流程與生命週期<br>
+    ・<code>docs.openclaw.ai/zh-TW/tools/slash-commands</code> — Skill 與 slash command 的關係<br>
+    ・<code>docs.openclaw.ai/zh-TW/cli/skills</code> — CLI 子命令<br>
+    ・<code>docs.openclaw.ai/zh-TW/clawhub/skill-format</code> — 發布格式、大小限制與 MIT-0 授權
+  </p>
+</div>
+
+<footer>OpenClaw Skills 完整解析 ｜ 產生時間：2026-08-20 20:18</footer>
+</main>
+</div>
+<script>
+// ===== Sidebar Toggle (Mobile) =====
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const btn = document.getElementById('menuBtn');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+  const open = sidebar.classList.contains('open');
+  document.body.classList.toggle('nav-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.classList.remove('nav-open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+}
+
+// ===== Theme =====
+function toggleTheme() {
+  const h = document.documentElement;
+  const b = document.getElementById('themeBtn');
+  if (h.dataset.theme === 'dark') {
+    h.dataset.theme = 'light'; b.textContent = '🌙';
+    localStorage.setItem('openclaw-skills-theme', 'light');
+  } else {
+    h.dataset.theme = 'dark'; b.textContent = '☀️';
+    localStorage.setItem('openclaw-skills-theme', 'dark');
+  }
+}
+(function restoreTheme() {
+  if (localStorage.getItem('openclaw-skills-theme') === 'light') {
+    document.documentElement.dataset.theme = 'light';
+    document.getElementById('themeBtn').textContent = '🌙';
+  }
+})();
+
+// ===== Copy Code =====
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  const text = pre.querySelector('code').textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '已複製！';
+    setTimeout(() => btn.textContent = '複製', 1600);
+  });
+}
+
+// ===== Python Syntax Highlighting =====
+const KW = new Set(['def','class','import','from','if','else','elif','return',
+  'True','False','None','and','or','not','in','is','try','except','raise',
+  'with','as','for','while','break','continue','pass','lambda','yield',
+  'async','await','global','del','assert','finally','nonlocal']);
+const BI = new Set(['print','len','str','int','float','bool','list','dict','set',
+  'tuple','range','open','type','isinstance','hasattr','getattr','setattr',
+  'super','object','enumerate','zip','map','filter','sorted','any','all',
+  'sum','min','max','abs','next','iter','staticmethod','classmethod','property']);
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hlPython(raw) {
+  const out = []; let i = 0;
+  while (i < raw.length) {
+    const c = raw[i];
+    if (c === '#') {
+      let e = raw.indexOf('\n', i); if (e < 0) e = raw.length;
+      out.push(`<span class="cm">${esc(raw.slice(i, e))}</span>`); i = e; continue;
+    }
+    if (c === '"' || c === "'") {
+      const q3 = raw.slice(i, i+3);
+      if (q3 === '"""' || q3 === "'''") {
+        let e = raw.indexOf(q3, i+3); if (e < 0) e = raw.length - 3;
+        out.push(`<span class="st">${esc(raw.slice(i, e+3))}</span>`); i = e+3; continue;
+      }
+      let j = i+1;
+      while (j < raw.length && raw[j] !== c && raw[j] !== '\n') { if (raw[j]==='\\') j++; j++; }
+      out.push(`<span class="st">${esc(raw.slice(i, j+1))}</span>`); i = j+1; continue;
+    }
+    if (c === '@') {
+      const m = raw.slice(i).match(/^@[\w.]+/);
+      if (m) { out.push(`<span class="dec">${esc(m[0])}</span>`); i += m[0].length; continue; }
+    }
+    if (/[a-zA-Z_]/.test(c)) {
+      const m = raw.slice(i).match(/^[a-zA-Z_]\w*/)[0];
+      const cls = KW.has(m) ? 'kw' : BI.has(m) ? 'bi' : null;
+      out.push(cls ? `<span class="${cls}">${esc(m)}</span>` : esc(m));
+      i += m.length; continue;
+    }
+    if (/[0-9]/.test(c)) {
+      const m = raw.slice(i).match(/^[0-9]+(\.[0-9]+)?/)[0];
+      out.push(`<span class="nu">${esc(m)}</span>`); i += m.length; continue;
+    }
+    out.push(esc(c)); i++;
+  }
+  return out.join('');
+}
+
+document.querySelectorAll('code[data-lang]').forEach(el => {
+  const lang = el.dataset.lang;
+  const raw = el.textContent;
+  el.innerHTML = lang === 'python' ? hlPython(raw) : esc(raw);
+});
+
+// ===== Active sidebar link =====
+const cards = [...document.querySelectorAll('.attack-card[id]'), document.getElementById('comparison')].filter(Boolean);
+const links = document.querySelectorAll('.sidebar a');
+window.addEventListener('scroll', () => {
+  let active = '';
+  cards.forEach(c => { if (c.getBoundingClientRect().top <= 100) active = c.id; });
+  links.forEach(a => {
+    const match = a.getAttribute('href').slice(1) === active;
+    a.classList.toggle('active', match);
+  });
+}, { passive: true });
+
+// 手機點連結後自動關閉 sidebar
+links.forEach(a => a.addEventListener('click', () => {
+  if (window.innerWidth <= 768) closeSidebar();
+}));
+</script>
+</body>
+</html>

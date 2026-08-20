@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown (.md) 格式完全解析</title>
+<style>
+:root[data-theme="dark"] {
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#1e2235;--border:#2d3148;
+  --text:#e2e8f0;--muted:#8892a4;--primary:#818cf8;--primary-light:#1e2048;
+  --success:#34d399;--success-light:#0d2e20;--warning:#fbbf24;--warning-light:#2d2008;
+  --danger:#f87171;--danger-light:#2d1010;--info:#60a5fa;--info-light:#0d1e3d;
+  --orange:#fb923c;--orange-light:#2d1a08;--code-bg:#252840;--code-text:#c4b5fd;
+  --sidebar-bg:#13151f;
+}
+:root[data-theme="light"] {
+  --bg:#f8f9fa;--surface:#fff;--surface2:#f1f5f9;--border:#e2e8f0;
+  --text:#1a202c;--muted:#718096;--primary:#4f46e5;--primary-light:#ede9fe;
+  --success:#16a34a;--success-light:#dcfce7;--warning:#d97706;--warning-light:#fef3c7;
+  --danger:#dc2626;--danger-light:#fee2e2;--info:#2563eb;--info-light:#dbeafe;
+  --orange:#ea580c;--orange-light:#ffedd5;--code-bg:#f1f5f9;--code-text:#5b21b6;
+  --sidebar-bg:#f0f2f5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+button,a{touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.topbar{position:sticky;top:0;z-index:100;min-height:57px;background:var(--surface);border-bottom:1px solid var(--border);padding:6px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.topbar h1{font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap}
+.topbar .meta{font-size:12px;color:var(--muted);flex:1;text-align:center}
+.theme-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 12px;cursor:pointer;font-size:15px;color:var(--text);flex-shrink:0}
+.layout{display:grid;grid-template-columns:230px 1fr;width:100%;min-height:calc(100vh - 57px);max-width:1300px;margin:0 auto}
+.sidebar{background:var(--sidebar-bg);border-right:1px solid var(--border);padding:18px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto}
+.sidebar h3{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sidebar ol{list-style:none}
+.sidebar li{margin-bottom:1px}
+.sidebar a{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 9px;border-radius:5px;text-decoration:none;color:var(--muted);font-size:12.5px;transition:color 0.15s,background 0.15s}
+.sidebar a:hover,.sidebar a.active{color:var(--primary);background:var(--primary-light)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot.critical{background:var(--danger)}.dot.high{background:var(--orange)}.dot.medium{background:var(--warning)}
+.sidebar-sep{margin:14px 0 10px}
+main{min-width:0;padding:28px 36px;max-width:880px}
+.topic-card{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;margin-bottom:28px;scroll-margin-top:72px}
+.topic-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.topic-num{background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px}
+.topic-title h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.topic-title .sub{font-size:12.5px;color:var(--muted)}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto;flex-shrink:0}
+.badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge.critical{background:var(--danger-light);color:var(--danger)}
+.badge.high{background:var(--orange-light);color:var(--orange)}
+.badge.medium{background:var(--warning-light);color:var(--warning)}
+.badge.network{background:var(--info-light);color:var(--info)}
+.badge.app{background:var(--primary-light);color:var(--primary)}
+.badge.browser{background:var(--success-light);color:var(--success)}
+.subtypes{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px 38px}
+.subtype{padding:1px 8px;border-radius:4px;font-size:11px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.desc{color:var(--muted);font-size:13.5px;margin:0 0 18px 38px;line-height:1.75}
+.desc strong{color:var(--text)}
+.desc code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:12.5px}
+.cs-title{font-size:12.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.cs-title.vuln{color:var(--danger)}.cs-title.attack{color:var(--warning)}.cs-title.defense{color:var(--success)}.cs-title.note{color:var(--info)}
+.cbw{position:relative;min-width:0;margin-bottom:10px}
+.code-lbl{position:absolute;top:8px;right:46px;font-size:10px;color:var(--muted);font-family:monospace;z-index:1}
+.copy-btn{position:absolute;top:6px;right:7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:44px;min-height:32px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--muted);z-index:1}
+.copy-btn:hover{color:var(--text)}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;max-width:100%;padding:14px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;font-size:12.5px;line-height:1.55;margin:0}
+code{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;color:var(--code-text)}
+.kw{color:#818cf8;font-weight:600}[data-theme="light"] .kw{color:#4f46e5}
+.st{color:#86efac}[data-theme="light"] .st{color:#15803d}
+.cm{color:#64748b;font-style:italic}
+.dec{color:#fb923c}[data-theme="light"] .dec{color:#c2410c}
+.bi{color:#67e8f9}[data-theme="light"] .bi{color:#0284c7}
+.nu{color:#fbbf24}[data-theme="light"] .nu{color:#b45309}
+.note-box{background:var(--info-light);border:1px solid var(--info);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--info);margin-bottom:14px}
+.warn-box{background:var(--warning-light);border:1px solid var(--warning);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--warning);margin-bottom:14px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.section-hdr{margin:36px 0 14px}.section-hdr h2{font-size:18px;font-weight:700;margin-bottom:3px}.section-hdr p{font-size:13px;color:var(--muted)}
+.table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--surface2);padding:9px 11px;text-align:left;font-weight:600;border:1px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap}
+td{padding:9px 11px;border:1px solid var(--border);vertical-align:top}
+td code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+tr:hover td{background:var(--surface2)}
+.chk{color:var(--success)}.prt{color:var(--warning)}.crs{color:var(--danger)}
+footer{text-align:center;padding:20px;color:var(--muted);font-size:11px;border-top:1px solid var(--border);margin-top:20px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ===== RWD ===== */
+.menu-btn{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 10px;cursor:pointer;font-size:18px;color:var(--text);flex-shrink:0;line-height:1}
+.sidebar-overlay{display:none;position:fixed;top:57px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:90}
+.sidebar-overlay.open{display:block}
+
+/* Tablet */
+@media(max-width:1024px){
+  .layout{grid-template-columns:200px 1fr}
+  main{padding:20px 24px}
+  .topbar .meta{display:none}
+}
+
+/* Mobile */
+@media(max-width:768px){
+  html{scroll-padding-top:64px}
+  body.nav-open{overflow:hidden}
+  .menu-btn{display:block}
+  .topbar{padding:6px 12px;gap:10px}
+  .topbar h1{font-size:14px;line-height:1.25;white-space:normal;min-width:0;flex:1}
+  .topbar .meta{display:none}
+  .theme-btn{padding:0;font-size:16px}
+  .layout{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;top:57px;left:-84vw;width:min(82vw,320px);
+    height:calc(100vh - 57px);z-index:95;padding:14px;
+    transition:left 0.25s ease;border-right:1px solid var(--border)
+  }
+  .sidebar.open{left:0}
+  .sidebar-overlay{top:57px}
+  .sidebar a{min-height:44px;padding:9px 10px;font-size:14px}
+  main{padding:14px 12px;max-width:100%;width:100%}
+  .topic-card{border-radius:10px;padding:14px;margin-bottom:16px;scroll-margin-top:64px}
+  .topic-header{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px 10px}
+  .topic-num{min-width:30px;height:30px;margin-top:0}
+  .topic-title{min-width:0}
+  .topic-title h2{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+  .topic-title .sub{font-size:13px;line-height:1.5}
+  .badges{grid-column:1 / -1;margin-left:0;width:100%;gap:8px}
+  .badge{padding:4px 10px;font-size:11.5px}
+  .desc{margin-left:0;font-size:16px;line-height:1.7}
+  .subtypes{margin-left:0;gap:8px}
+  .subtype{padding:4px 8px;font-size:12px}
+  .cs-title{font-size:14px;line-height:1.45;align-items:flex-start}
+  .cbw{padding-top:48px}
+  .code-lbl{display:none}
+  .copy-btn{top:0;right:0;min-height:44px;padding:0 12px;font-size:12px}
+  pre{font-size:12px;padding:12px;line-height:1.6}
+  .note-box,.warn-box{font-size:14px;line-height:1.6}
+  .section-hdr h2{font-size:16px}
+  .section-hdr p{font-size:14px}
+  .table-wrap{margin-left:-2px;margin-right:-2px;border:1px solid var(--border);border-radius:8px}
+  table{min-width:760px;font-size:12px}
+  th,td{padding:8px 9px}
+  footer{padding:18px 10px;font-size:12px}
+}
+
+@media(max-width:420px){
+  .topbar h1{font-size:13px}
+  main{padding:10px}
+  .topic-card{padding:12px}
+  pre{font-size:11.5px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="menu-btn" onclick="toggleSidebar()" id="menuBtn" aria-label="開啟選單" aria-expanded="false" aria-controls="siteSidebar">☰</button>
+  <h1>📝 Markdown (.md) 格式完全解析</h1>
+  <span class="meta">2026-08-20 &nbsp;｜&nbsp; 14 個主題 &nbsp;｜&nbsp; 語法 / 方言 / 工具生態</span>
+  <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
+</header>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="layout">
+<nav class="sidebar" id="siteSidebar">
+  <h3>核心觀念</h3>
+  <ol>
+    <li><a href="#what-is"><span class="dot critical"></span>Markdown 是什麼</a></li>
+  </ol>
+  <div class="sidebar-sep">
+    <h3>基礎語法</h3>
+    <ol>
+      <li><a href="#heading"><span class="dot medium"></span>標題 Heading</a></li>
+      <li><a href="#paragraph"><span class="dot medium"></span>段落與換行</a></li>
+      <li><a href="#emphasis"><span class="dot medium"></span>文字強調</a></li>
+      <li><a href="#list"><span class="dot medium"></span>清單 List</a></li>
+      <li><a href="#link"><span class="dot medium"></span>連結與圖片</a></li>
+      <li><a href="#code"><span class="dot medium"></span>程式碼區塊</a></li>
+      <li><a href="#quote"><span class="dot medium"></span>引用 Blockquote</a></li>
+      <li><a href="#table"><span class="dot medium"></span>表格 Table</a></li>
+      <li><a href="#misc"><span class="dot medium"></span>分隔線與跳脫</a></li>
+    </ol>
+  </div>
+  <div class="sidebar-sep">
+    <h3>進階應用</h3>
+    <ol>
+      <li><a href="#frontmatter"><span class="dot high"></span>Front Matter</a></li>
+      <li><a href="#flavors"><span class="dot high"></span>方言差異</a></li>
+      <li><a href="#ecosystem"><span class="dot high"></span>工具生態</a></li>
+      <li><a href="#pitfalls"><span class="dot high"></span>常見踩雷</a></li>
+    </ol>
+  </div>
+  <div class="sidebar-sep">
+    <h3>快速跳轉</h3>
+    <ol>
+      <li><a href="#comparison">📊 語法速查表</a></li>
+    </ol>
+  </div>
+</nav>
+<main>
+
+<!-- ===== 1. Markdown 是什麼 ===== -->
+<div class="topic-card" id="what-is">
+  <div class="topic-header">
+    <div class="topic-num">1</div>
+    <div class="topic-title">
+      <h2>Markdown 是什麼？</h2>
+      <div class="sub">一種用純文字寫、能轉成 HTML 的輕量標記語言</div>
+    </div>
+    <div class="badges"><span class="badge app">核心觀念</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">.md</span><span class="subtype">.markdown</span><span class="subtype">.mdx</span><span class="subtype">text/markdown</span></div>
+  <p class="desc"><strong>Markdown</strong> 由 John Gruber 與 Aaron Swartz 於 2004 年提出，設計目標只有一句話：<strong>「讓文件在未經轉換的原始狀態下就易於閱讀」</strong>。它用 <code>#</code>、<code>*</code>、<code>-</code> 這類本來就常見於純文字信件的符號來表達結構，因此即使不經任何渲染，raw 檔案也看得懂 — 這是它跟 HTML、LaTeX、Word 最大的差別。<br><br>一個 <code>.md</code> 檔案本質上就是<strong>純文字檔（plain text）</strong>，沒有二進位格式、沒有壓縮、沒有專屬 schema。你可以用 <code>cat</code>、<code>git diff</code>、任何編輯器直接開，也因此它天然適合版本控制。</p>
+
+  <div class="cs-title note">📄 一個最小的 .md 檔案長什麼樣</div>
+  <div class="cbw">
+    <span class="code-lbl">README.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# 專案名稱
+
+這是一段**說明文字**，描述專案用途。
+
+## 安裝
+
+```bash
+npm install my-package
+```
+
+## 特色
+
+- 輕量、零依賴
+- 支援 TypeScript
+- [線上文件](https://example.com)
+</code></pre>
+  </div>
+
+  <div class="note-box">ℹ️ <strong>Markdown 不是排版工具</strong> — 它只描述「語意結構」（這是標題、這是清單），實際外觀由渲染端的 CSS 決定。想精準控制字型大小、顏色、位置，就得回頭用 HTML/CSS。</div>
+
+  <div class="cs-title defense">✅ 為什麼工程界普遍採用</div>
+  <div class="cbw">
+    <span class="code-lbl">為什麼是 Markdown</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+1. Diff 友善     → 純文字，git diff 逐行可讀，PR review 容易
+2. 零鎖定       → 不依賴任何軟體，任何編輯器都能開
+3. 寫作專注     → 不用滑鼠切格式，手不離鍵盤
+4. 到處都能渲染  → GitHub / GitLab / Slack / Notion / Discord 原生支援
+5. 可程式化     → 容易被腳本、靜態網站產生器、LLM 解析與生成
+6. 長期保存     → 20 年後仍然是可讀的 txt，沒有格式失效問題
+</code></pre>
+  </div>
+</div>
+
+<!-- ===== 2. 標題 ===== -->
+<div class="topic-card" id="heading">
+  <div class="topic-header">
+    <div class="topic-num">2</div>
+    <div class="topic-title">
+      <h2>標題 Heading</h2>
+      <div class="sub">用 # 數量表示層級，對應 HTML 的 h1 ~ h6</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">ATX 風格</span><span class="subtype">Setext 風格</span></div>
+  <p class="desc">標題有兩種寫法。<strong>ATX 風格</strong>（<code>#</code> 開頭）是現在的主流，支援 1~6 級；<strong>Setext 風格</strong>（底線 <code>===</code> / <code>---</code>）只支援 2 級，現在較少用，但在某些舊文件仍會看到。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">heading.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# 一級標題 (h1)
+## 二級標題 (h2)
+### 三級標題 (h3)
+#### 四級標題 (h4)
+##### 五級標題 (h5)
+###### 六級標題 (h6)
+
+Setext 風格一級標題
+==================
+
+Setext 風格二級標題
+------------------
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <strong>常見錯誤</strong>：<code>#</code> 與文字之間<strong>必須有空格</strong>。<code>#標題</code> 在 CommonMark / GFM 下不會被當成標題，只會輸出成純文字 <code>#標題</code>。</div>
+
+  <div class="note-box">ℹ️ <strong>層級不要跳號</strong> — 從 <code>#</code> 直接跳到 <code>###</code> 會破壞文件大綱（outline）與螢幕閱讀器的導航。慣例上一份 <code>.md</code> 只有<strong>一個 <code>#</code> 一級標題</strong>當文件主題，其餘用 <code>##</code> 起算。</div>
+</div>
+
+<!-- ===== 3. 段落與換行 ===== -->
+<div class="topic-card" id="paragraph">
+  <div class="topic-header">
+    <div class="topic-num">3</div>
+    <div class="topic-title">
+      <h2>段落與換行</h2>
+      <div class="sub">Markdown 最容易踩坑的地方：按 Enter 不一定會換行</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span></div>
+  </div>
+  <p class="desc">Markdown 用<strong>空行</strong>分隔段落。在同一段落內單純按一次 Enter，渲染後<strong>不會換行</strong>，兩行會被接成同一行 — 這是初學者最常遇到的困惑。要在段落內強制換行有三種做法。</p>
+
+  <div class="cs-title vuln">⚠️ 不會換行的寫法</div>
+  <div class="cbw">
+    <span class="code-lbl">wrong.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+第一行文字
+第二行文字
+
+渲染結果 → 第一行文字 第二行文字   (被接成一行)
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ 三種正確的換行方式</div>
+  <div class="cbw">
+    <span class="code-lbl">correct.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+方式 1：行尾加兩個以上空格（最標準，但空格看不見易被編輯器吃掉）
+第一行文字··
+第二行文字
+
+方式 2：行尾加反斜線（CommonMark 支援，語意明確）
+第一行文字\
+第二行文字
+
+方式 3：直接寫 HTML 標籤（最保險，各家渲染器都吃）
+第一行文字&lt;br&gt;
+第二行文字
+
+段落切換：中間空一行（最推薦，語意最清楚）
+
+這是新的一個段落。
+</code></pre>
+  </div>
+
+  <div class="note-box">ℹ️ 部分平台（<strong>GitHub 的 issue / PR 留言、Slack、Discord</strong>）啟用了 <code>breaks</code> 選項，單一 Enter 就會換行。但 <strong>GitHub 上 <code>.md</code> 檔案本身的渲染不啟用</strong>，所以同一份文字在留言框跟檔案裡會有不同結果。</div>
+</div>
+
+<!-- ===== 4. 文字強調 ===== -->
+<div class="topic-card" id="emphasis">
+  <div class="topic-header">
+    <div class="topic-num">4</div>
+    <div class="topic-title">
+      <h2>文字強調 Emphasis</h2>
+      <div class="sub">粗體、斜體、刪除線、行內程式碼</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">bold</span><span class="subtype">italic</span><span class="subtype">strikethrough</span><span class="subtype">inline code</span></div>
+  <p class="desc">星號 <code>*</code> 與底線 <code>_</code> 效果相同，但<strong>底線在單字中間不會生效</strong>（避免誤傷 <code>snake_case_name</code> 這種變數名稱），所以慣例上一律用星號。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">emphasis.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+*斜體*            或  _斜體_            → &lt;em&gt;
+**粗體**          或  __粗體__          → &lt;strong&gt;
+***粗斜體***      或  ___粗斜體___      → &lt;strong&gt;&lt;em&gt;
+~~刪除線~~                              → &lt;del&gt;   (GFM 擴充)
+`行內程式碼`                             → &lt;code&gt;
+==高亮==                                 → &lt;mark&gt;  (Obsidian / Pandoc)
+
+行內程式碼含反引號時，用更多反引號包住：
+``含有 ` 反引號的程式碼``
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <strong>中文的斜體陷阱</strong>：<code>*中文*</code> 在部分嚴格遵守 CommonMark 的渲染器中會失效，因為規格判斷「左右定界符」時依賴 Unicode 標點/空白規則，中文字元容易讓 <code>*</code> 被判定為非開啟符號。保險做法是在星號與中文之間避免緊鄰標點，或改用 <code>&lt;em&gt;</code> 標籤。</div>
+</div>
+
+<!-- ===== 5. 清單 ===== -->
+<div class="topic-card" id="list">
+  <div class="topic-header">
+    <div class="topic-num">5</div>
+    <div class="topic-title">
+      <h2>清單 List</h2>
+      <div class="sub">無序清單、有序清單、嵌套、任務清單</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span><span class="badge browser">含 GFM</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">ul</span><span class="subtype">ol</span><span class="subtype">nested</span><span class="subtype">task list</span></div>
+  <p class="desc">無序清單用 <code>-</code>、<code>*</code> 或 <code>+</code>；有序清單用 <code>數字.</code>。<strong>嵌套靠縮排</strong>，慣例縮 2 或 4 個空格（同一份文件內務必統一，混用是 bug 溫床）。<strong>任務清單（task list）</strong>是 GitHub Flavored Markdown 的擴充，在 GitHub 上會渲染成可點擊的 checkbox。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">list.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+無序清單：
+- 項目一
+- 項目二
+  - 嵌套項目（縮排 2 空格）
+    - 再一層
+- 項目三
+
+有序清單：
+1. 第一步
+2. 第二步
+   1. 子步驟
+3. 第三步
+
+數字可以全寫 1.，渲染時會自動編號（好處：中間插入不用重排）：
+1. 第一步
+1. 第二步
+1. 第三步
+
+任務清單（GFM 擴充）：
+- [ ] 未完成的待辦
+- [x] 已完成的待辦
+- [ ] ~~取消的項目~~
+
+清單項目內含多段落（後續段落縮排對齊文字）：
+- 這是項目的第一段。
+
+  這是同一個項目的第二段，縮排 2 空格。
+
+  ```bash
+  # 清單內也能放程式碼區塊
+  echo "hello"
+  ```
+</code></pre>
+  </div>
+
+  <div class="note-box">ℹ️ <strong>鬆散 vs 緊湊清單</strong>：項目之間有空行 → 每個項目被包成 <code>&lt;p&gt;</code>（鬆散，行距較大）；沒有空行 → 直接是 <code>&lt;li&gt;</code> 文字（緊湊）。想調整清單視覺密度時，這就是唯一的控制點。</div>
+</div>
+
+<!-- ===== 6. 連結與圖片 ===== -->
+<div class="topic-card" id="link">
+  <div class="topic-header">
+    <div class="topic-num">6</div>
+    <div class="topic-title">
+      <h2>連結與圖片</h2>
+      <div class="sub">inline / reference / autolink 三種形式</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">inline link</span><span class="subtype">reference link</span><span class="subtype">autolink</span><span class="subtype">image</span></div>
+  <p class="desc">圖片語法就是連結語法前面加一個 <code>!</code>，方括號內的文字變成 <code>alt</code> 屬性。<strong>Reference link</strong>（參照式）把 URL 集中放在文件底部，適合同一個網址被引用多次、或 URL 很長會影響原始碼可讀性的情況。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">link.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+Inline 連結：
+[顯示文字](https://example.com)
+[帶 title 的連結](https://example.com "滑鼠停留時的提示")
+[相對路徑連結](./docs/setup.md)
+[跳到本頁標題](#安裝)          &lt;- anchor 由標題文字轉小寫、空格轉 -
+
+Reference 連結（URL 定義在文件底部，不會被渲染出來）：
+請參考 [官方文件][docs] 與 [API 說明][api]。
+
+[docs]: https://example.com/docs
+[api]: https://example.com/api "API Reference"
+
+Autolink（GFM 會自動偵測，純 CommonMark 需用角括號）：
+&lt;https://example.com&gt;
+&lt;someone@example.com&gt;
+
+圖片：
+![替代文字](./assets/screenshot.png)
+![帶 title 的圖](https://example.com/img.png "圖說")
+
+可點擊的圖片（圖片包在連結裡）：
+[![Build Status](https://ci.example.com/badge.svg)](https://ci.example.com)
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <strong>Markdown 原生無法控制圖片尺寸</strong>。需要縮放時只能寫 HTML：<code>&lt;img src="x.png" width="400"&gt;</code>。（例外：Obsidian 支援 <code>![[img.png|400]]</code>、部分渲染器支援 <code>![alt](x.png =400x)</code>，但都非標準。）</div>
+</div>
+
+<!-- ===== 7. 程式碼 ===== -->
+<div class="topic-card" id="code">
+  <div class="topic-header">
+    <div class="topic-num">7</div>
+    <div class="topic-title">
+      <h2>程式碼區塊 Code Block</h2>
+      <div class="sub">Fenced code block 與語法高亮</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">inline code</span><span class="subtype">fenced</span><span class="subtype">indented</span><span class="subtype">syntax highlight</span></div>
+  <p class="desc">程式碼區塊有兩種：<strong>fenced</strong>（三個反引號或三個波浪號包住，可標語言）與 <strong>indented</strong>（每行縮排 4 空格，舊語法）。實務上一律用 fenced，因為可以指定語言做語法高亮，也不會跟清單縮排打架。</p>
+
+  <div class="cs-title note">📝 語法（用 ~~~ 示範以免反引號混淆）</div>
+  <div class="cbw">
+    <span class="code-lbl">code.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+行內程式碼用單反引號：請執行 `npm install`。
+
+Fenced code block（三個反引號 + 語言標籤）：
+~~~python
+def greet(name: str) -&gt; str:
+    return f"Hello, {name}!"
+~~~
+
+~~~bash
+git commit -m "feat: add markdown parser"
+~~~
+
+~~~diff
+- const old = 1;
++ const new = 2;
+~~~
+
+不指定語言（不做高亮，適合純文字輸出、目錄樹）：
+~~~
+project/
+├── src/
+└── README.md
+~~~
+
+Indented code block（縮排 4 空格，舊寫法，不推薦）：
+
+    這是程式碼
+    這也是
+</code></pre>
+  </div>
+
+  <div class="note-box">ℹ️ <strong>要在 code block 裡放 code block</strong>？外層用更多的圍欄符號即可 — 內層 3 個反引號，外層就用 4 個反引號（或改用 <code>~~~</code>）。這在寫「教 Markdown 的 Markdown」時很常用。</div>
+
+  <div class="note-box">ℹ️ <strong>語言標籤的額外用途</strong>：除了高亮，<code>mermaid</code>（流程圖）、<code>math</code> / <code>latex</code>（公式）等標籤在 GitHub、Obsidian 等平台會被特殊渲染成圖表，而不是純文字程式碼。</div>
+</div>
+
+<!-- ===== 8. 引用 ===== -->
+<div class="topic-card" id="quote">
+  <div class="topic-header">
+    <div class="topic-num">8</div>
+    <div class="topic-title">
+      <h2>引用區塊 Blockquote</h2>
+      <div class="sub">> 開頭，可嵌套，GitHub 額外支援 Alert 語法</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span><span class="badge browser">含 GFM</span></div>
+  </div>
+  <p class="desc">用 <code>&gt;</code> 開頭表示引用。引用區塊內可以再放任何 Markdown 元素（標題、清單、程式碼），也可以嵌套。<strong>GitHub Alerts</strong> 是 GFM 較新的擴充，用 <code>&gt; [!NOTE]</code> 這種標記讓引用變成帶顏色與圖示的提示框。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">quote.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+&gt; 這是一段引用文字。
+&gt; 同一個引用的第二行。
+
+&gt; 引用內可以放其他元素：
+&gt;
+&gt; - 清單項目
+&gt; - 另一個項目
+&gt;
+&gt; **粗體** 也可以。
+
+嵌套引用：
+&gt; 第一層引用
+&gt; &gt; 第二層引用
+&gt; &gt; &gt; 第三層引用
+
+GitHub Alerts（GitHub / GitLab 支援，其他平台退化成普通引用）：
+&gt; [!NOTE]
+&gt; 一般提示資訊。
+
+&gt; [!TIP]
+&gt; 實用小技巧。
+
+&gt; [!IMPORTANT]
+&gt; 使用者必須知道的重點。
+
+&gt; [!WARNING]
+&gt; 需要立即注意的風險。
+
+&gt; [!CAUTION]
+&gt; 可能造成負面後果的操作。
+</code></pre>
+  </div>
+</div>
+
+<!-- ===== 9. 表格 ===== -->
+<div class="topic-card" id="table">
+  <div class="topic-header">
+    <div class="topic-num">9</div>
+    <div class="topic-title">
+      <h2>表格 Table</h2>
+      <div class="sub">GFM 擴充語法，用 | 分隔欄位</div>
+    </div>
+    <div class="badges"><span class="badge browser">GFM 擴充</span></div>
+  </div>
+  <p class="desc"><strong>表格不在原始 Markdown 與 CommonMark 規格內</strong>，是 GFM（GitHub Flavored Markdown）的擴充，但今天絕大多數渲染器都支援。第二行的<strong>分隔列</strong>用冒號位置控制對齊。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">table.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+| 欄位 A | 欄位 B | 欄位 C |
+| ------ | ------ | ------ |
+| 資料 1 | 資料 2 | 資料 3 |
+| 資料 4 | 資料 5 | 資料 6 |
+
+對齊控制（冒號位置決定）：
+| 左對齊 | 置中 | 右對齊 |
+| :----- | :--: | -----: |
+| left   | mid  |  right |
+
+原始碼的管線符號不需要對齊，以下同樣合法（醜但可用）：
+| 欄位 A | 欄位 B |
+|---|---|
+| 1 | 2 |
+
+儲存格內可用行內語法，但不能有換行：
+| 項目 | 說明 |
+| --- | --- |
+| `code` | **粗體** 與 [連結](https://example.com) |
+| 換行 | 只能用 &lt;br&gt; 標籤硬換 |
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <strong>表格的三個硬限制</strong>：(1) 儲存格內<strong>不能放多行內容</strong>，換行只能用 <code>&lt;br&gt;</code>；(2) <strong>不支援合併儲存格</strong>（colspan / rowspan），需要就得改寫 HTML <code>&lt;table&gt;</code>；(3) 儲存格內文字含 <code>|</code> 必須跳脫成 <code>\|</code>，否則會被當成欄位分隔。</div>
+</div>
+
+<!-- ===== 10. 分隔線與跳脫 ===== -->
+<div class="topic-card" id="misc">
+  <div class="topic-header">
+    <div class="topic-num">10</div>
+    <div class="topic-title">
+      <h2>分隔線、跳脫字元與行內 HTML</h2>
+      <div class="sub">其餘常用的零碎語法</div>
+    </div>
+    <div class="badges"><span class="badge medium">基礎語法</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">horizontal rule</span><span class="subtype">escape</span><span class="subtype">inline HTML</span><span class="subtype">comment</span></div>
+  <p class="desc">Markdown 規格明確允許<strong>直接內嵌 HTML</strong> — 這是它的逃生門：語法做不到的（圖片尺寸、合併儲存格、折疊區塊、置中），一律用 HTML 補。但要注意許多平台（GitHub、Notion）會出於安全<strong>過濾掉 <code>&lt;script&gt;</code>、<code>&lt;style&gt;</code> 與部分屬性</strong>。</p>
+
+  <div class="cs-title note">📝 語法</div>
+  <div class="cbw">
+    <span class="code-lbl">misc.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+分隔線（三個以上，三種寫法等價）：
+---
+***
+___
+
+跳脫字元（讓符號顯示成字面意思，不被當語法）：
+\*不是斜體\*        → *不是斜體*
+\# 不是標題
+\`不是程式碼\`
+可跳脫字元：\ ` * _ { } [ ] ( ) # + - . ! |
+
+註解（HTML 註解，渲染時不顯示）：
+&lt;!-- 這段文字不會出現在渲染結果中 --&gt;
+
+行內 HTML（Markdown 做不到的事都靠這個）：
+&lt;div align="center"&gt;置中的內容&lt;/div&gt;
+
+&lt;details&gt;
+&lt;summary&gt;點擊展開（GitHub 上的折疊區塊）&lt;/summary&gt;
+
+這裡是折疊起來的內容，前後要留空行才會渲染 Markdown。
+
+&lt;/details&gt;
+
+&lt;kbd&gt;Cmd&lt;/kbd&gt; + &lt;kbd&gt;C&lt;/kbd&gt;   → 顯示成按鍵樣式
+&lt;sub&gt;下標&lt;/sub&gt; 與 &lt;sup&gt;上標&lt;/sup&gt;
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <strong>HTML 區塊內的 Markdown 不會被解析</strong>（CommonMark 規則）。<code>&lt;div&gt;**粗體**&lt;/div&gt;</code> 會輸出字面上的星號。解法是在 HTML 標籤與內容之間<strong>空一行</strong>，如上面 <code>&lt;details&gt;</code> 的範例。</div>
+</div>
+
+<!-- ===== 11. Front Matter ===== -->
+<div class="topic-card" id="frontmatter">
+  <div class="topic-header">
+    <div class="topic-num">11</div>
+    <div class="topic-title">
+      <h2>Front Matter — 檔案的 metadata</h2>
+      <div class="sub">檔首的 YAML 區塊，靜態網站與筆記軟體的核心機制</div>
+    </div>
+    <div class="badges"><span class="badge high">進階應用</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">YAML</span><span class="subtype">TOML</span><span class="subtype">Jekyll / Hugo</span><span class="subtype">Obsidian</span></div>
+  <p class="desc">Front matter 是放在檔案<strong>最開頭</strong>、由 <code>---</code> 包住的結構化 metadata 區塊。它<strong>不屬於 Markdown 標準</strong>，而是工具層的慣例，但已經是事實標準：靜態網站產生器靠它決定標題、日期、標籤、模板；Obsidian 靠它做 properties 與 dataview 查詢；Claude Code 的 skill 與 agent 定義檔也用它宣告 <code>name</code> / <code>description</code>。</p>
+
+  <div class="cs-title note">📄 典型的 front matter</div>
+  <div class="cbw">
+    <span class="code-lbl">posts/2026-08-20-hello.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+---
+title: "我的第一篇文章"
+date: 2026-08-20
+author: Ping
+tags: [markdown, 教學, 工具]
+draft: false
+description: 介紹 Markdown 的基本語法與應用場景
+---
+
+# 我的第一篇文章
+
+從這裡開始才是正文內容。
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <code>---</code> 必須是<strong>檔案的第一行</strong>，前面不能有空行或 BOM，否則會被解析成分隔線（<code>&lt;hr&gt;</code>）而不是 front matter。這是設定沒生效時最常見的原因。</div>
+</div>
+
+<!-- ===== 12. 方言 ===== -->
+<div class="topic-card" id="flavors">
+  <div class="topic-header">
+    <div class="topic-num">12</div>
+    <div class="topic-title">
+      <h2>Markdown 方言（Flavors）差異</h2>
+      <div class="sub">為什麼同一份 .md 在不同平台長得不一樣</div>
+    </div>
+    <div class="badges"><span class="badge high">進階應用</span><span class="badge critical">易踩雷</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">Markdown.pl</span><span class="subtype">CommonMark</span><span class="subtype">GFM</span><span class="subtype">Pandoc</span><span class="subtype">MDX</span><span class="subtype">Obsidian</span></div>
+  <p class="desc">Gruber 最初的規格寫得相當模糊，導致各家實作行為不一致。2014 年 <strong>CommonMark</strong> 出現，提供嚴格且有測試套件的規格，成為現代解析器的共同基礎；<strong>GFM</strong> 則是 GitHub 在 CommonMark 之上加的擴充（表格、任務清單、刪除線、autolink、alerts）。其他方言各自往不同方向長。</p>
+
+  <div class="cs-title note">🔀 各方言的特色語法</div>
+  <div class="cbw">
+    <span class="code-lbl">flavors.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+[GFM — GitHub / GitLab]
+~~刪除線~~ 、 - [x] 任務清單 、 | 表格 |
+https://自動連結 、 &gt; [!WARNING] alerts
+@mention 、 #123 issue 連結 、 :emoji:
+
+[Pandoc — 學術寫作 / 轉檔]
+腳註[^1] 、 定義清單 、 $LaTeX 公式$
+[^1]: 這是腳註內容
+表格 caption 、 引用文獻 [@citation]
+
+[Obsidian — 個人知識庫]
+[[Wiki 連結]] 、 [[檔案|顯示文字]] 、 ![[嵌入筆記]]
+==高亮文字== 、 %%行內註解%% 、 #標籤
+
+[MDX — React 文件網站]
+import Chart from './Chart'
+&lt;Chart data={data} /&gt;      &lt;- 直接在 Markdown 裡用 React component
+
+[Notion / Slack — 部分支援]
+沒有表格語法、標題只到 3 級、貼上時自動轉換為區塊
+</code></pre>
+  </div>
+
+  <div class="note-box">ℹ️ <strong>實務建議</strong>：寫給多平台看的文件（README、規格書）就<strong>只用 CommonMark + GFM 的交集</strong> — 標題、清單、粗斜體、連結、程式碼、表格、引用。方言特有語法留給那個平台專用的檔案。</div>
+</div>
+
+<!-- ===== 13. 生態 ===== -->
+<div class="topic-card" id="ecosystem">
+  <div class="topic-header">
+    <div class="topic-num">13</div>
+    <div class="topic-title">
+      <h2>工具生態與應用場景</h2>
+      <div class="sub">.md 檔案實際被用在哪裡</div>
+    </div>
+    <div class="badges"><span class="badge high">進階應用</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">文件</span><span class="subtype">部落格</span><span class="subtype">筆記</span><span class="subtype">簡報</span><span class="subtype">AI / LLM</span></div>
+  <p class="desc">Markdown 早已超出「寫 README」的範疇。因為它同時對<strong>人類可讀</strong>與<strong>機器可解析</strong>，近年更成為 LLM 與 AI agent 的主要文件介面 — <code>CLAUDE.md</code>、skill 定義、prompt 模板、agent 輸出格式幾乎全是 Markdown。</p>
+
+  <div class="cs-title defense">🛠️ 場景與代表工具</div>
+  <div class="cbw">
+    <span class="code-lbl">ecosystem.txt</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+專案文件      README.md / CHANGELOG.md / CONTRIBUTING.md / ADR
+文件網站      MkDocs、Docusaurus、VitePress、Starlight、GitBook
+靜態部落格    Hugo、Jekyll、Astro、Next.js (MDX)、Eleventy
+知識管理      Obsidian、Logseq、Zettlr、Bear、Joplin
+即時通訊      Slack、Discord、Teams（子集語法）
+簡報          Marp、Slidev、reveal.js、Deckset
+轉檔          Pandoc（→ PDF / docx / epub / LaTeX / HTML）
+排版          Typora、iA Writer、VS Code + Markdown Preview
+AI / LLM      CLAUDE.md、AGENTS.md、system prompt、agent skill 定義
+資料交換      LLM 輸出格式、RAG 文件切塊、API 文件描述欄位
+</code></pre>
+  </div>
+
+  <div class="cs-title note">⚙️ 主流解析器（寫程式處理 .md 時會用到）</div>
+  <div class="cbw">
+    <span class="code-lbl">parsers.txt</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+JavaScript   marked、markdown-it、remark / unified、micromark
+Python       markdown-it-py、Python-Markdown、mistune、marko
+Go           goldmark（Hugo 使用）、blackfriday
+Rust         pulldown-cmark、comrak
+Ruby         CommonMarker、Redcarpet
+PHP          league/commonmark
+CLI          pandoc、glow（終端機閱讀）、mdcat、bat
+Lint / 格式化 markdownlint、prettier、remark-lint
+</code></pre>
+  </div>
+
+  <div class="warn-box">⚠️ <strong>安全提醒</strong>：Markdown 允許內嵌 HTML，因此把使用者輸入的 Markdown 直接渲染成 HTML 會有 <strong>XSS 風險</strong>。務必在渲染後用 DOMPurify / bleach 之類的工具做 sanitize，或關閉解析器的 raw HTML 選項（例如 marked 的 <code>sanitize</code> 已廢棄，應改用外部 sanitizer）。</div>
+</div>
+
+<!-- ===== 14. 常見踩雷 ===== -->
+<div class="topic-card" id="pitfalls">
+  <div class="topic-header">
+    <div class="topic-num">14</div>
+    <div class="topic-title">
+      <h2>常見踩雷與最佳實踐</h2>
+      <div class="sub">寫 .md 時最容易出錯的地方整理</div>
+    </div>
+    <div class="badges"><span class="badge critical">易踩雷</span></div>
+  </div>
+  <p class="desc">Markdown 的錯誤幾乎都是<strong>空行與空格</strong>造成的：區塊級元素（標題、清單、程式碼區塊、表格、引用）前後<strong>沒空行</strong>，就可能被併進上一個段落而完全不生效。</p>
+
+  <div class="cs-title vuln">❌ 錯誤寫法</div>
+  <div class="cbw">
+    <span class="code-lbl">bad.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+這是一段文字
+## 標題緊貼段落          &lt;- 部分渲染器不會當成標題
+- 清單緊貼段落            &lt;- CommonMark 下會被吃掉
+
+#沒有空格的標題           &lt;- 不是標題，輸出字面文字
+
+| 表格 | 沒有 |
+| 分隔列                  &lt;- 欄位數不符，整張表壞掉
+
+  1. 前面有兩個空格的有序清單   &lt;- 可能被當成 indented code
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ 正確寫法與慣例</div>
+  <div class="cbw">
+    <span class="code-lbl">good.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+這是一段文字。
+
+## 標題前後都留空行
+
+- 清單前後也留空行
+- 縮排統一用 2 或 4 空格，全檔一致
+
+一份文件只用一個 # 一級標題，其餘從 ## 開始。
+清單符號固定用 -，強調固定用 **，不要混用 * 和 _。
+程式碼區塊一律標語言，方便高亮與工具解析。
+行寬不硬換行（讓編輯器 soft wrap），diff 才乾淨。
+用 markdownlint / prettier 自動檢查與格式化。
+</code></pre>
+  </div>
+
+  <div class="note-box">ℹ️ <strong>驗證你的 Markdown</strong>：不確定某個語法在標準下的行為時，用 <a href="https://spec.commonmark.org/dingus/" style="color:inherit">CommonMark Dingus</a> 即時比對，或跑 <code>markdownlint</code> 找出不合慣例的寫法。</div>
+</div>
+
+<!-- ===== 比較總表 ===== -->
+<div class="section-hdr" id="comparison">
+  <h2>📊 語法速查表與方言對照</h2>
+  <p>常用語法對照 + 各方言支援狀況一覽</p>
+</div>
+
+<div class="topic-card" style="padding:20px">
+  <div class="cs-title note">📋 核心語法速查表</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>用途</th><th>Markdown 寫法</th><th>對應 HTML</th><th>標準</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>標題</td><td><code># ~ ######</code></td><td><code>&lt;h1&gt;~&lt;h6&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>粗體</td><td><code>**text**</code></td><td><code>&lt;strong&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>斜體</td><td><code>*text*</code></td><td><code>&lt;em&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>刪除線</td><td><code>~~text~~</code></td><td><code>&lt;del&gt;</code></td><td class="prt">GFM</td></tr>
+        <tr><td>高亮</td><td><code>==text==</code></td><td><code>&lt;mark&gt;</code></td><td class="crs">非標準</td></tr>
+        <tr><td>行內程式碼</td><td><code>`code`</code></td><td><code>&lt;code&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>程式碼區塊</td><td>三反引號 + 語言</td><td><code>&lt;pre&gt;&lt;code&gt;</code></td><td class="chk">CommonMark</td></tr>
+        <tr><td>無序清單</td><td><code>- item</code></td><td><code>&lt;ul&gt;&lt;li&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>有序清單</td><td><code>1. item</code></td><td><code>&lt;ol&gt;&lt;li&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>任務清單</td><td><code>- [x] item</code></td><td><code>&lt;input type=checkbox&gt;</code></td><td class="prt">GFM</td></tr>
+        <tr><td>連結</td><td><code>[text](url)</code></td><td><code>&lt;a href&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>圖片</td><td><code>![alt](url)</code></td><td><code>&lt;img&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>引用</td><td><code>&gt; text</code></td><td><code>&lt;blockquote&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>表格</td><td><code>| a | b |</code></td><td><code>&lt;table&gt;</code></td><td class="prt">GFM</td></tr>
+        <tr><td>分隔線</td><td><code>---</code></td><td><code>&lt;hr&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>換行</td><td>行尾兩空格 或 <code>\</code></td><td><code>&lt;br&gt;</code></td><td class="chk">原始</td></tr>
+        <tr><td>腳註</td><td><code>text[^1]</code></td><td><code>&lt;sup&gt;&lt;a&gt;</code></td><td class="crs">Pandoc/GFM</td></tr>
+        <tr><td>Wiki 連結</td><td><code>[[Page]]</code></td><td><code>&lt;a href&gt;</code></td><td class="crs">非標準</td></tr>
+        <tr><td>註解</td><td><code>&lt;!-- text --&gt;</code></td><td>不輸出</td><td class="chk">原始</td></tr>
+        <tr><td>Metadata</td><td><code>---</code> YAML 區塊</td><td>不輸出</td><td class="crs">工具層慣例</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <div class="cs-title note">🔀 方言支援對照表</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>功能</th><th>CommonMark</th><th>GFM</th><th>Pandoc</th><th>Obsidian</th><th>MDX</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>基礎語法（標題/清單/連結）</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+        <tr><td>表格</td><td class="crs">✗</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+        <tr><td>任務清單</td><td class="crs">✗</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+        <tr><td>刪除線 <code>~~</code></td><td class="crs">✗</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+        <tr><td>Autolink（裸 URL）</td><td class="crs">✗</td><td class="chk">✓</td><td class="prt">選項</td><td class="chk">✓</td><td class="prt">選項</td></tr>
+        <tr><td>Alerts <code>&gt; [!NOTE]</code></td><td class="crs">✗</td><td class="chk">✓</td><td class="crs">✗</td><td class="chk">✓</td><td class="prt">外掛</td></tr>
+        <tr><td>腳註 <code>[^1]</code></td><td class="crs">✗</td><td class="prt">部分</td><td class="chk">✓</td><td class="chk">✓</td><td class="prt">外掛</td></tr>
+        <tr><td>數學公式 <code>$...$</code></td><td class="crs">✗</td><td class="prt">部分</td><td class="chk">✓</td><td class="chk">✓</td><td class="prt">外掛</td></tr>
+        <tr><td>高亮 <code>==text==</code></td><td class="crs">✗</td><td class="crs">✗</td><td class="prt">擴充</td><td class="chk">✓</td><td class="crs">✗</td></tr>
+        <tr><td>Wiki 連結 <code>[[...]]</code></td><td class="crs">✗</td><td class="crs">✗</td><td class="prt">擴充</td><td class="chk">✓</td><td class="crs">✗</td></tr>
+        <tr><td>Mermaid 圖表</td><td class="crs">✗</td><td class="chk">✓</td><td class="crs">✗</td><td class="chk">✓</td><td class="prt">外掛</td></tr>
+        <tr><td>YAML front matter</td><td class="crs">✗</td><td class="prt">顯示為表格</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+        <tr><td>內嵌原始 HTML</td><td class="chk">✓</td><td class="prt">會 sanitize</td><td class="chk">✓</td><td class="chk">✓</td><td class="prt">須為 JSX</td></tr>
+        <tr><td>JSX / Component</td><td class="crs">✗</td><td class="crs">✗</td><td class="crs">✗</td><td class="crs">✗</td><td class="chk">✓</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="desc" style="margin:14px 0 0 0"><span class="chk">✓</span> 原生支援　<span class="prt">部分／需設定</span>　<span class="crs">✗</span> 不支援</p>
+</div>
+
+<footer>Markdown (.md) 格式完全解析 ｜ 產生時間：2026-08-20 19:45 ｜ 由 qa-html-report skill 產生</footer>
+</main>
+</div>
+<script>
+// ===== Sidebar Toggle (Mobile) =====
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const btn = document.getElementById('menuBtn');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+  const open = sidebar.classList.contains('open');
+  document.body.classList.toggle('nav-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.classList.remove('nav-open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+}
+
+// ===== Theme =====
+function toggleTheme() {
+  const h = document.documentElement;
+  const b = document.getElementById('themeBtn');
+  if (h.dataset.theme === 'dark') {
+    h.dataset.theme = 'light'; b.textContent = '🌙';
+    localStorage.setItem('md-guide-theme', 'light');
+  } else {
+    h.dataset.theme = 'dark'; b.textContent = '☀️';
+    localStorage.setItem('md-guide-theme', 'dark');
+  }
+}
+(function restoreTheme() {
+  if (localStorage.getItem('md-guide-theme') === 'light') {
+    document.documentElement.dataset.theme = 'light';
+    document.getElementById('themeBtn').textContent = '🌙';
+  }
+})();
+
+// ===== Copy Code =====
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  const text = pre.querySelector('code').textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '已複製！';
+    setTimeout(() => btn.textContent = '複製', 1600);
+  });
+}
+
+// ===== Syntax Highlighting =====
+const KW = new Set(['def','class','import','from','if','else','elif','return',
+  'True','False','None','and','or','not','in','is','try','except','raise',
+  'with','as','for','while','break','continue','pass','lambda','yield',
+  'async','await','global','del','assert','finally','nonlocal']);
+const BI = new Set(['print','len','str','int','float','bool','list','dict','set',
+  'tuple','range','open','type','isinstance','hasattr','getattr','setattr',
+  'super','object','enumerate','zip','map','filter','sorted','any','all',
+  'sum','min','max','abs','next','iter','staticmethod','classmethod','property']);
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hlPython(raw) {
+  const out = []; let i = 0;
+  while (i < raw.length) {
+    const c = raw[i];
+    if (c === '#') {
+      let e = raw.indexOf('\n', i); if (e < 0) e = raw.length;
+      out.push(`<span class="cm">${esc(raw.slice(i, e))}</span>`); i = e; continue;
+    }
+    if (c === '"' || c === "'") {
+      const q3 = raw.slice(i, i+3);
+      if (q3 === '"""' || q3 === "'''") {
+        let e = raw.indexOf(q3, i+3); if (e < 0) e = raw.length - 3;
+        out.push(`<span class="st">${esc(raw.slice(i, e+3))}</span>`); i = e+3; continue;
+      }
+      let j = i+1;
+      while (j < raw.length && raw[j] !== c && raw[j] !== '\n') { if (raw[j]==='\\') j++; j++; }
+      out.push(`<span class="st">${esc(raw.slice(i, j+1))}</span>`); i = j+1; continue;
+    }
+    if (c === '@') {
+      const m = raw.slice(i).match(/^@[\w.]+/);
+      if (m) { out.push(`<span class="dec">${esc(m[0])}</span>`); i += m[0].length; continue; }
+    }
+    if (/[a-zA-Z_]/.test(c)) {
+      const m = raw.slice(i).match(/^[a-zA-Z_]\w*/)[0];
+      const cls = KW.has(m) ? 'kw' : BI.has(m) ? 'bi' : null;
+      out.push(cls ? `<span class="${cls}">${esc(m)}</span>` : esc(m));
+      i += m.length; continue;
+    }
+    if (/[0-9]/.test(c)) {
+      const m = raw.slice(i).match(/^[0-9]+(\.[0-9]+)?/)[0];
+      out.push(`<span class="nu">${esc(m)}</span>`); i += m.length; continue;
+    }
+    out.push(esc(c)); i++;
+  }
+  return out.join('');
+}
+
+document.querySelectorAll('code[data-lang]').forEach(el => {
+  const lang = el.dataset.lang;
+  const raw = el.textContent;
+  el.innerHTML = lang === 'python' ? hlPython(raw) : esc(raw);
+});
+
+// ===== Active sidebar link =====
+const cards = [...document.querySelectorAll('.topic-card[id]'), document.getElementById('comparison')].filter(Boolean);
+const links = document.querySelectorAll('.sidebar a');
+window.addEventListener('scroll', () => {
+  let active = '';
+  cards.forEach(c => { if (c.getBoundingClientRect().top <= 100) active = c.id; });
+  links.forEach(a => {
+    const match = a.getAttribute('href').slice(1) === active;
+    a.classList.toggle('active', match);
+  });
+}, { passive: true });
+
+// 手機點連結後自動關閉 sidebar
+links.forEach(a => a.addEventListener('click', () => {
+  if (window.innerWidth <= 768) closeSidebar();
+}));
+</script>
+</body>
+</html>

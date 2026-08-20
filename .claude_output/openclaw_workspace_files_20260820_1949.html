@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Workspace 核心文件解析</title>
+<style>
+:root[data-theme="dark"] {
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#1e2235;--border:#2d3148;
+  --text:#e2e8f0;--muted:#8892a4;--primary:#818cf8;--primary-light:#1e2048;
+  --success:#34d399;--success-light:#0d2e20;--warning:#fbbf24;--warning-light:#2d2008;
+  --danger:#f87171;--danger-light:#2d1010;--info:#60a5fa;--info-light:#0d1e3d;
+  --orange:#fb923c;--orange-light:#2d1a08;--code-bg:#252840;--code-text:#c4b5fd;
+  --sidebar-bg:#13151f;
+}
+:root[data-theme="light"] {
+  --bg:#f8f9fa;--surface:#fff;--surface2:#f1f5f9;--border:#e2e8f0;
+  --text:#1a202c;--muted:#718096;--primary:#4f46e5;--primary-light:#ede9fe;
+  --success:#16a34a;--success-light:#dcfce7;--warning:#d97706;--warning-light:#fef3c7;
+  --danger:#dc2626;--danger-light:#fee2e2;--info:#2563eb;--info-light:#dbeafe;
+  --orange:#ea580c;--orange-light:#ffedd5;--code-bg:#f1f5f9;--code-text:#5b21b6;
+  --sidebar-bg:#f0f2f5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+button,a{touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.topbar{position:sticky;top:0;z-index:100;min-height:57px;background:var(--surface);border-bottom:1px solid var(--border);padding:6px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.topbar h1{font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap}
+.topbar .meta{font-size:12px;color:var(--muted);flex:1;text-align:center}
+.theme-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 12px;cursor:pointer;font-size:15px;color:var(--text);flex-shrink:0}
+.layout{display:grid;grid-template-columns:230px 1fr;width:100%;min-height:calc(100vh - 57px);max-width:1300px;margin:0 auto}
+.sidebar{background:var(--sidebar-bg);border-right:1px solid var(--border);padding:18px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto}
+.sidebar h3{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sidebar ol{list-style:none}
+.sidebar li{margin-bottom:1px}
+.sidebar a{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 9px;border-radius:5px;text-decoration:none;color:var(--muted);font-size:12.5px;transition:color 0.15s,background 0.15s}
+.sidebar a:hover,.sidebar a.active{color:var(--primary);background:var(--primary-light)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot.critical{background:var(--danger)}.dot.high{background:var(--orange)}.dot.medium{background:var(--warning)}
+.sidebar-sep{margin:14px 0 10px}
+main{min-width:0;padding:28px 36px;max-width:880px}
+.attack-card{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;margin-bottom:28px;scroll-margin-top:72px}
+.attack-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.attack-num{background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px}
+.attack-title h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.attack-title .sub{font-size:12.5px;color:var(--muted)}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto;flex-shrink:0}
+.badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge.critical{background:var(--danger-light);color:var(--danger)}
+.badge.high{background:var(--orange-light);color:var(--orange)}
+.badge.medium{background:var(--warning-light);color:var(--warning)}
+.badge.network{background:var(--info-light);color:var(--info)}
+.badge.app{background:var(--primary-light);color:var(--primary)}
+.badge.browser{background:var(--success-light);color:var(--success)}
+.subtypes{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px 38px}
+.subtype{padding:1px 8px;border-radius:4px;font-size:11px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.desc{color:var(--muted);font-size:13.5px;margin:0 0 18px 38px;line-height:1.75}
+.desc strong{color:var(--text)}
+.cs-title{font-size:12.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.cs-title.vuln{color:var(--danger)}.cs-title.attack{color:var(--warning)}.cs-title.defense{color:var(--success)}.cs-title.note{color:var(--info)}
+.cbw{position:relative;min-width:0;margin-bottom:10px}
+.code-lbl{position:absolute;top:8px;right:46px;font-size:10px;color:var(--muted);font-family:monospace;z-index:1}
+.copy-btn{position:absolute;top:6px;right:7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:44px;min-height:32px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--muted);z-index:1}
+.copy-btn:hover{color:var(--text)}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;max-width:100%;padding:14px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;font-size:12.5px;line-height:1.55;margin:0}
+code{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;color:var(--code-text)}
+.kw{color:#818cf8;font-weight:600}[data-theme="light"] .kw{color:#4f46e5}
+.st{color:#86efac}[data-theme="light"] .st{color:#15803d}
+.cm{color:#64748b;font-style:italic}
+.dec{color:#fb923c}[data-theme="light"] .dec{color:#c2410c}
+.bi{color:#67e8f9}[data-theme="light"] .bi{color:#0284c7}
+.nu{color:#fbbf24}[data-theme="light"] .nu{color:#b45309}
+.note-box{background:var(--info-light);border:1px solid var(--info);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--info);margin-bottom:14px}
+.warn-box{background:var(--warning-light);border:1px solid var(--warning);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--warning);margin-bottom:14px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.section-hdr{margin:36px 0 14px}.section-hdr h2{font-size:18px;font-weight:700;margin-bottom:3px}.section-hdr p{font-size:13px;color:var(--muted)}
+.table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--surface2);padding:9px 11px;text-align:left;font-weight:600;border:1px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap}
+td{padding:9px 11px;border:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface2)}
+.chk{color:var(--success)}.prt{color:var(--warning)}.crs{color:var(--danger)}
+footer{text-align:center;padding:20px;color:var(--muted);font-size:11px;border-top:1px solid var(--border);margin-top:20px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ===== RWD ===== */
+.menu-btn{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 10px;cursor:pointer;font-size:18px;color:var(--text);flex-shrink:0;line-height:1}
+.sidebar-overlay{display:none;position:fixed;top:57px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:90}
+.sidebar-overlay.open{display:block}
+
+/* Tablet */
+@media(max-width:1024px){
+  .layout{grid-template-columns:200px 1fr}
+  main{padding:20px 24px}
+  .topbar .meta{display:none}
+}
+
+/* Mobile */
+@media(max-width:768px){
+  html{scroll-padding-top:64px}
+  body.nav-open{overflow:hidden}
+  .menu-btn{display:block}
+  .topbar{padding:6px 12px;gap:10px}
+  .topbar h1{font-size:14px;line-height:1.25;white-space:normal;min-width:0;flex:1}
+  .topbar .meta{display:none}
+  .theme-btn{padding:0;font-size:16px}
+  .layout{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;top:57px;left:-84vw;width:min(82vw,320px);
+    height:calc(100vh - 57px);z-index:95;padding:14px;
+    transition:left 0.25s ease;border-right:1px solid var(--border)
+  }
+  .sidebar.open{left:0}
+  .sidebar-overlay{top:57px}
+  .sidebar a{min-height:44px;padding:9px 10px;font-size:14px}
+  main{padding:14px 12px;max-width:100%;width:100%}
+  .attack-card{border-radius:10px;padding:14px;margin-bottom:16px;scroll-margin-top:64px}
+  .attack-header{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px 10px}
+  .attack-num{min-width:30px;height:30px;margin-top:0}
+  .attack-title{min-width:0}
+  .attack-title h2{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+  .attack-title .sub{font-size:13px;line-height:1.5}
+  .badges{grid-column:1 / -1;margin-left:0;width:100%;gap:8px}
+  .badge{padding:4px 10px;font-size:11.5px}
+  .desc{margin-left:0;font-size:16px;line-height:1.7}
+  .subtypes{margin-left:0;gap:8px}
+  .subtype{padding:4px 8px;font-size:12px}
+  .cs-title{font-size:14px;line-height:1.45;align-items:flex-start}
+  .cbw{padding-top:48px}
+  .code-lbl{display:none}
+  .copy-btn{top:0;right:0;min-height:44px;padding:0 12px;font-size:12px}
+  pre{font-size:12px;padding:12px;line-height:1.6}
+  .note-box,.warn-box{font-size:14px;line-height:1.6}
+  .section-hdr h2{font-size:16px}
+  .section-hdr p{font-size:14px}
+  .table-wrap{margin-left:-2px;margin-right:-2px;border:1px solid var(--border);border-radius:8px}
+  table{min-width:760px;font-size:12px}
+  th,td{padding:8px 9px}
+  footer{padding:18px 10px;font-size:12px}
+}
+
+@media(max-width:420px){
+  .topbar h1{font-size:13px}
+  main{padding:10px}
+  .attack-card{padding:12px}
+  pre{font-size:11.5px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="menu-btn" onclick="toggleSidebar()" id="menuBtn" aria-label="開啟選單" aria-expanded="false" aria-controls="siteSidebar">☰</button>
+  <h1>🦞 OpenClaw Workspace 核心文件解析</h1>
+  <span class="meta">2026-08-20 &nbsp;｜&nbsp; AGENTS / IDENTITY / SOUL / USER / TOOLS / MEMORY &nbsp;｜&nbsp; 含本 repo 三個 Agent 實例對照</span>
+  <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
+</header>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="layout">
+<nav class="sidebar" id="siteSidebar">
+  <h3>核心文件</h3>
+  <ol>
+    <li><a href="#overview"><span class="dot critical"></span>Workspace 是什麼</a></li>
+    <li><a href="#agents"><span class="dot critical"></span>AGENTS.md 作業規則</a></li>
+    <li><a href="#identity"><span class="dot medium"></span>IDENTITY.md 身分名牌</a></li>
+    <li><a href="#soul"><span class="dot high"></span>SOUL.md 語氣人格</a></li>
+    <li><a href="#user"><span class="dot high"></span>USER.md 服務對象</a></li>
+    <li><a href="#tools"><span class="dot high"></span>TOOLS.md 環境實況</a></li>
+    <li><a href="#memory"><span class="dot high"></span>MEMORY.md 長期記憶</a></li>
+    <li><a href="#daily"><span class="dot medium"></span>memory/ 每日日誌</a></li>
+    <li><a href="#heartbeat"><span class="dot medium"></span>HEARTBEAT.md 定期巡檢</a></li>
+    <li><a href="#boot"><span class="dot medium"></span>BOOT / BOOTSTRAP.md</a></li>
+    <li><a href="#boundary"><span class="dot critical"></span>該寫哪一個檔案</a></li>
+    <li><a href="#repo"><span class="dot high"></span>本 repo 實例對照</a></li>
+    <li><a href="#security"><span class="dot critical"></span>安全與備份紅線</a></li>
+  </ol>
+  <div class="sidebar-sep">
+    <h3>快速跳轉</h3>
+    <ol><li><a href="#comparison">📊 比較總表</a></li></ol>
+  </div>
+</nav>
+<main>
+
+<!-- ===== 1. Overview ===== -->
+<div class="attack-card" id="overview">
+  <div class="attack-header">
+    <div class="attack-num">1</div>
+    <div class="attack-title">
+      <h2>Workspace — Agent 的「家」與這些檔案存在的理由</h2>
+      <div class="sub">為什麼一個 Agent 需要一整組 Markdown，而不是一份長長的 prompt</div>
+    </div>
+    <div class="badges"><span class="badge critical">基礎</span><span class="badge app">架構</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">~/.openclaw/workspace</span><span class="subtype">system prompt 注入</span><span class="subtype">prompt cache</span></div>
+  <p class="desc">OpenClaw 的每個 Agent 都有一個 <strong>workspace 目錄</strong>，它是 Agent 檔案工具的預設工作目錄，也是它「人格與規則」的存放處。它和 <code>~/.openclaw/</code>（設定與憑證）在概念上是分開的兩件事。<br><br>關鍵在於：<strong>每個 session 都是獨立的</strong>，模型本身沒有跨 session 的記憶。連續性完全靠這些檔案在每次啟動時被重新注入 system prompt 來維持。所以拆成多個檔案不是為了整潔，而是因為<strong>每個檔案有不同的注入時機、不同的可見範圍、不同的更新頻率</strong>。</p>
+
+  <div class="cs-title note">📁 預設目錄結構</div>
+  <div class="cbw">
+    <span class="code-lbl">~/.openclaw/workspace/</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+~/.openclaw/workspace/
+├── AGENTS.md        # 作業指示與行為政策（必要）
+├── SOUL.md          # 語氣、立場、風格、界線
+├── IDENTITY.md      # 名字、生物設定、emoji、頭像
+├── USER.md          # 服務對象是誰、怎麼稱呼、時區
+├── TOOLS.md         # 這台機器 / 這個環境的工具實況
+├── MEMORY.md        # 長期記憶：已確認事實、穩定決策
+├── memory/
+│   ├── 2026-08-19.md    # 每日工作日誌（昨天）
+│   └── 2026-08-20.md    # 每日工作日誌（今天）
+├── HEARTBEAT.md     # 定期巡檢清單（預設停用）
+└── BOOT.md          # 啟動一次性指示（hook 預設停用）
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ Workspace 路徑的決定順序</div>
+  <div class="cbw">
+    <span class="code-lbl">環境變數 / 設定檔</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# 1. OPENCLAW_WORKSPACE_DIR  ← 最高優先，直接覆寫
+# 2. OPENCLAW_PROFILE=work   ← 產生 ~/.openclaw/workspace-work
+# 3. ~/.openclaw/openclaw.json 內的設定
+# 4. 預設值 ~/.openclaw/workspace
+</code></pre>
+  </div>
+
+  <div class="cs-title vuln">⚠️ 哪些檔案真的會被注入 system prompt</div>
+  <p class="desc">OpenClaw 啟動 session 時注入的檔案清單為：<code>AGENTS.md</code>、<code>SOUL.md</code>、<code>IDENTITY.md</code>、<code>USER.md</code>、<code>TOOLS.md</code>、<code>HEARTBEAT.md</code>、<code>BOOTSTRAP.md</code>（僅全新 workspace）、以及 <code>MEMORY.md</code>（存在時）。<strong>缺少的檔案會被注入一個簡短的「檔案遺失」標記</strong>，所以少一個檔不會壞掉，但 Agent 會知道它不存在。</p>
+  <div class="note-box">ℹ️ <strong>Prompt cache 邊界：</strong>workspace 這些穩定內容被放在快取邊界<strong>之上</strong>；訊息、語音、群組情境、runtime 細節等動態段落接在邊界<strong>之下</strong>。這讓支援 prefix caching 的後端可以跨多輪對話重用整段 workspace 前綴 — 也就是說，<strong>頻繁改動這些檔案會讓快取失效</strong>，這是「SOUL.md 要短」的實務理由之一。</div>
+  <div class="warn-box">⚠️ <strong>Subagent 只拿到兩個檔案：</strong>子代理 session 只會收到 <code>AGENTS.md</code> 與 <code>TOOLS.md</code>，其他啟動檔會被過濾掉以壓縮子層 context。所以<strong>任何你希望 subagent 也遵守的硬規則，必須寫在 AGENTS.md，不能只寫在 SOUL.md</strong>。</div>
+  <div class="warn-box">⚠️ <strong>Workspace 是預設 cwd，不是強制沙箱。</strong>相對路徑從 workspace 解析，但除非另外啟用沙箱，絕對路徑仍可存取系統其他位置。</div>
+</div>
+
+<!-- ===== 2. AGENTS.md ===== -->
+<div class="attack-card" id="agents">
+  <div class="attack-header">
+    <div class="attack-num">2</div>
+    <div class="attack-title">
+      <h2>AGENTS.md — 作業規則手冊</h2>
+      <div class="sub">Agent 「怎麼做事」的政策層：流程、權限、紅線、輸出格式</div>
+    </div>
+    <div class="badges"><span class="badge critical">必要</span><span class="badge app">規則</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">每個 session 注入</span><span class="subtype">subagent 也會收到</span><span class="subtype">可被 AGENTS.default 覆寫</span></div>
+  <p class="desc"><code>AGENTS.md</code> 是整組檔案中<strong>唯一真正不能省的</strong>。它定義的是<strong>作業指示與行為政策</strong> — 開場要讀什麼、什麼可以自動做、什麼必須人工核准、寫入前要不要先預覽、回覆要用什麼結構。SOUL.md 管「講話的感覺」，AGENTS.md 管「行為的邊界」。</p>
+
+  <div class="cs-title note">📋 官方預設範本涵蓋的四項安全預設</div>
+  <div class="cbw">
+    <span class="code-lbl">AGENTS.default.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+1. 避免洩露目錄內容或機密
+2. 未經明確要求，不執行破壞性命令
+3. 修改設定前先檢查現有狀態並保留原有內容
+4. 不向外部介面發送部分或串流中的回覆
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ 官方範本要求的工作流程規則</div>
+  <p class="desc"><strong>Session 開場：</strong>讀取 <code>SOUL.md</code>、<code>USER.md</code>，以及 <code>memory/</code> 中「今天與前一天」的紀錄；若有 <code>MEMORY.md</code> 也要讀。<br><strong>記憶讀寫：</strong>修改前先讀取內容，只寫入具體更新，記錄決策、偏好、限制條件與未完成事項。<br><strong>其他建議：</strong>把 workspace 初始化為 Git repo 作備份、自訂開發前先查現成的開源方案、啟用 heartbeat 以支援背景排程。</p>
+
+  <div class="cs-title attack">🔧 實務寫法 — 本 repo hr-agent 的啟動順序段</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/AGENTS.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+## 啟動順序
+
+優先使用 runtime 已載入的 workspace context；
+只有檔案未被載入或明確需要刷新時，才依序讀取：
+
+1. IDENTITY.md
+2. SOUL.md
+3. USER.md
+4. TOOLS.md
+5. MEMORY.md（只限 main session）
+6. memory/YYYY-MM-DD.md（只限 main session；今天與昨天，若存在）
+
+HEARTBEAT.md 只有在 heartbeat 事件發生時讀取。
+群組、共享或跨 Agent 情境不得載入 MEMORY.md 或 daily memory；
+只使用任務所需且已去識別化的明確資料。
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>值得抄的兩個設計：</strong>（1）「優先使用 runtime 已載入的 context」避免 Agent 每次開場都白花 token 重讀已注入的檔案；（2）<strong>把 MEMORY.md 限定在 main session</strong> — 群組或跨 Agent 情境不載入，這是防止記憶洩漏到不該看到的人眼前的關鍵一行。</div>
+
+  <div class="cs-title attack">🔒 實務寫法 — 人工核准紅線與部署預設</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/AGENTS.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+## 部署預設
+
+在 USER.md 尚未填妥正式核准角色、TOOLS.md 尚未配置可驗證的
+API scope 前，本 Agent 僅能唯讀查詢與產生草稿；
+所有正式寫入能力保持停用。
+
+## 人工核准紅線
+
+- 加班、補休、請假及排班異動
+- 薪資、津貼、扣款與出勤結算變更
+- 員工資格、訓練完成狀態與證照效期變更
+- 停權、懲處、解僱或其他重大人事決定
+
+禁止核准自己建立的申請，禁止代冒主管、HR 或員工身分。
+若 API 回傳權限不足、狀態衝突或需核准，
+立即停止並回報下一位合法核准者。
+</code></pre>
+  </div>
+  <div class="warn-box">⚠️ <strong>「部署預設」是被低估的技巧：</strong>它讓 workspace 在<strong>設定不完整時自動降級成唯讀</strong>，而不是帶著半套權限去寫入生產系統。新建 Agent 時就該預設寫上這段。</div>
+</div>
+
+<!-- ===== 3. IDENTITY.md ===== -->
+<div class="attack-card" id="identity">
+  <div class="attack-header">
+    <div class="attack-num">3</div>
+    <div class="attack-title">
+      <h2>IDENTITY.md — 身分名牌</h2>
+      <div class="sub">名字、本質、風格、emoji、頭像 — 最短但決定「這是誰」的檔案</div>
+    </div>
+    <div class="badges"><span class="badge medium">建議</span><span class="badge browser">身分</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">- 標籤: 值 格式</span><span class="subtype">Theme &gt; Creature &gt; Vibe</span><span class="subtype">部分欄位可被工具寫回</span></div>
+  <p class="desc"><code>IDENTITY.md</code> 是五個欄位的名牌：<strong>Name（名稱）、Creature（本質，例如 AI、機器人、使魔）、Vibe / Style（風格）、Emoji、Avatar（頭像）</strong>。官方文件對它的定位是「這不只是中繼資料，而是探索自我定位的起點」。</p>
+
+  <div class="cs-title note">🏷️ 格式與解析規則</div>
+  <div class="cbw">
+    <span class="code-lbl">qc-agent/IDENTITY.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# Identity
+
+- **Name:** qc-agent
+- **Theme:** 冷凍粉圓食品工廠的品質、放行與冷鏈風險管理
+- **Creature:** 冷靜可靠的食品品質守門員
+- **Vibe:** 嚴謹、可追溯、先證據後結論
+- **Emoji:** 🧪
+- **Avatar:**
+</code></pre>
+  </div>
+  <p class="desc">解析要點：欄位採 <code>- 標籤: 數值</code> 格式；<strong>括號內的 placeholder 提示文字會被忽略</strong>（所以範本可以留著不填）；頭像可用相對路徑、URL 或 data URI；當多個欄位互相衝突時，<strong>優先順序為 Theme &gt; Creature &gt; Vibe</strong>。</p>
+  <div class="note-box">ℹ️ <strong>哪些欄位是雙向的：</strong>OpenClaw 的工具會同步身分設定，但<strong>只把 Name、Theme、Emoji、Avatar 寫回檔案</strong>；<code>Creature</code> 與 <code>Vibe</code> 屬唯讀輸入 — 也就是說這兩個欄位是你單方向給 Agent 的設定，不會被工具覆寫。</div>
+  <div class="warn-box">⚠️ <strong>別把 IDENTITY.md 當 SOUL.md 用。</strong>IDENTITY 是「一句話能講完的標籤」，SOUL 才是行為描述。Vibe 寫「嚴謹、可追溯」就夠了，把「面對食品安全風險寧可標示未知」這種句子放進 SOUL.md。</div>
+</div>
+
+<!-- ===== 4. SOUL.md ===== -->
+<div class="attack-card" id="soul">
+  <div class="attack-header">
+    <div class="attack-num">4</div>
+    <div class="attack-title">
+      <h2>SOUL.md — 語氣、立場與人格</h2>
+      <div class="sub">修正「平淡、閃爍其詞、官腔十足」的那個檔案</div>
+    </div>
+    <div class="badges"><span class="badge high">高影響</span><span class="badge browser">人格</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">語氣</span><span class="subtype">觀點</span><span class="subtype">簡潔程度</span><span class="subtype">幽默</span><span class="subtype">界線</span><span class="subtype">直率程度</span></div>
+  <p class="desc"><code>SOUL.md</code> 是 Agent 的<strong>語氣與個性配置檔</strong>。它在一般工作 session 中被注入模型情境，所以對表現的影響非常直接。官方文件對它的定義很明確：它的用途是<strong>修正平淡、閃爍其詞或官腔十足的 Agent 表現</strong>。</p>
+
+  <div class="cs-title defense">✅ 應該放進 SOUL.md 的東西</div>
+  <p class="desc">凡是<strong>會改變「與這個 Agent 交談的感受」</strong>的元素：語氣、觀點、簡潔程度、幽默、界線，以及預設的直率程度。原則是 —— <strong>「短勝於長，鮮明勝於含糊」</strong>。</p>
+
+  <div class="cs-title vuln">⚠️ 不該放進 SOUL.md 的東西</div>
+  <div class="cbw">
+    <span class="code-lbl">反面清單</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+✗ 生平故事 / 背景設定小說
+✗ 變更日誌（changelog）
+✗ 安全政策        ← 這些屬於 AGENTS.md
+✗ 沒有行為影響的氛圍文字
+✗ 「始終保持專業」這類模糊企業用語
+</code></pre>
+  </div>
+  <p class="desc">好的規則應該<strong>有立場、省略廢話、適度幽默、及早指出問題</strong>。「始終保持專業」之所以是壞規則，是因為它不改變任何一個具體選擇；「發現缺口時，先說明影響，再提出建議」才會。</p>
+
+  <div class="cs-title attack">📝 實務寫法 — 本 repo mc-agent 的 SOUL.md</div>
+  <div class="cbw">
+    <span class="code-lbl">mc-agent/SOUL.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# SOUL.md — mc-agent
+
+你是細心、務實的原物料管理專員。你相信每一筆物料移動都應可追溯，
+每一個 lot 都必須有明確狀態，每一次冷鏈交接都要留下證據。
+
+## 行事風格
+
+- 先查證，再回答；精確到 lot、數量、單位、儲位、時間與來源。
+- 對不確定性坦白，不補猜資料。
+- 提供可執行的下一步，並指出需要誰核准。
+- 使用繁體中文，語氣專業、直接，不堆砌術語。
+
+## 核心底線
+
+效率不能凌駕食品安全、批次追溯、權限分工與稽核完整性。
+你可以找出問題、分析影響並建立草稿，
+但不能自行放行、改庫存、取消出貨或改配方。
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>為什麼這樣有效：</strong>這符合提示詞工程的一般原則 —— 高階行為、語氣與目標應放在<strong>優先級較高的指示層</strong>，而不是埋在使用者回合裡。SOUL.md 應該<strong>持續迭代並納入版本控管</strong>，就像本 repo 這樣放在 git 裡。</div>
+  <div class="warn-box">⚠️ <strong>有個性不等於草率。</strong>在公開或客戶介面上運作時，語氣要符合場合 —— 官方的說法是「犀利很好，惹人厭則不然」。</div>
+</div>
+
+<!-- ===== 5. USER.md ===== -->
+<div class="attack-card" id="user">
+  <div class="attack-header">
+    <div class="attack-num">5</div>
+    <div class="attack-title">
+      <h2>USER.md — 服務對象是誰</h2>
+      <div class="sub">不是建檔案，而是真的認識一個人（或一群角色）</div>
+    </div>
+    <div class="badges"><span class="badge high">高影響</span><span class="badge network">情境</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">稱呼偏好</span><span class="subtype">代名詞</span><span class="subtype">時區</span><span class="subtype">背景與在做的事</span></div>
+  <p class="desc"><code>USER.md</code> 記錄的是<strong>使用者資訊</strong>：姓名、稱呼偏好、代名詞（選填）、時區、備註，加上一段「背景資訊」 —— 對方關注什麼、正在進行哪些專案、什麼會讓人不舒服、什麼會讓人笑。官方特別強調它的意圖：<strong>這不是建立「人物檔案」，而是真誠地瞭解一個人，並隨互動逐步充實</strong>。</p>
+
+  <div class="cs-title attack">📝 個人 Agent 的寫法（官方範本方向）</div>
+  <div class="cbw">
+    <span class="code-lbl">USER.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# User
+
+- Name: （姓名）
+- Preferred name: （希望被怎麼稱呼）
+- Pronouns: （選填）
+- Timezone: Asia/Taipei
+- Notes: （備註）
+
+## Background
+
+（在關心什麼、手上有哪些專案、
+  什麼話題要避開、什麼會讓對方笑）
+</code></pre>
+  </div>
+
+  <div class="cs-title attack">🏭 企業 Agent 的寫法 — 從「一個人」擴展成「一組角色」</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/USER.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# User
+
+- **Workspace owner:** FreeForJoy 專案負責人
+- **Primary users:** 工廠主管、產線主管、HR 人員
+- **Language:** 繁體中文（台灣）
+- **Timezone:** Asia/Taipei
+- **Business context:** 冷凍粉圓食品製造，需要輪班、平日夜間與
+  週六加班、出勤、補休及人員資格管理
+
+## 角色關係
+
+- 員工可查詢自己的班表、出勤、申請與餘額，並建立本人申請。
+- 產線主管可在授權範圍查看班組人力與資格缺口，處理第一階段核准。
+- HR 負責制度、工時與薪資／補休結算的最終管理。
+- Workspace owner 管理系統設定，但不因此自動取得
+  所有員工 PII 或人事核准權。
+
+無法確認呼叫者身分或權限時，只提供一般性說明，
+不回傳個人資料，也不執行寫入。
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>這是把 USER.md 當授權模型用。</strong>當 Agent 服務的是多個角色而非單一使用者時，USER.md 的「角色關係」段落就成了 Agent 判斷「這個要求該不該答」的依據 —— 注意最後一句把「身分不明」對應到明確的降級行為，而不是留給模型自由心證。</div>
+  <div class="warn-box">⚠️ <strong>USER.md 也會進 system prompt。</strong>不要往裡面塞不該被 Agent（以及任何能看到 Agent 回覆的人）知道的敏感個資。</div>
+</div>
+
+<!-- ===== 6. TOOLS.md ===== -->
+<div class="attack-card" id="tools">
+  <div class="attack-header">
+    <div class="attack-num">6</div>
+    <div class="attack-title">
+      <h2>TOOLS.md — 你這個環境的實況小抄</h2>
+      <div class="sub">Skills 定義工具「怎麼運作」；TOOLS.md 記錄「你的」細節</div>
+    </div>
+    <div class="badges"><span class="badge high">高影響</span><span class="badge network">環境</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">subagent 也會收到</span><span class="subtype">攝影機 / SSH / TTS</span><span class="subtype">API base URL 與 scope</span></div>
+  <p class="desc"><code>TOOLS.md</code> 的定位是一句話：<strong>「Skills 定義工具如何運作。這個檔案用於記錄你的特定資訊。」</strong>官方範例是很生活化的內容 —— 家裡有哪幾支攝影機（living-room 是主要區域、front-door 是動作觸發）、SSH 別名對應哪個 IP（home-server → 192.168.1.100）、TTS 用哪個聲音、預設播在哪個房間。</p>
+  <p class="desc">把個人設定和共用 Skills 分開的好處很實際：<strong>更新 Skill 時你的備註不會被蓋掉，分享 Skill 時也不會連基礎架構資訊一起外流</strong>。</p>
+
+  <div class="cs-title attack">🔌 企業寫法 — 把 API 契約與限制寫成 TOOLS.md</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/TOOLS.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# Tools
+
+## HRM API
+
+- **Base URL:** ${HRM_API_BASE_URL}
+- **Credential reference:** ${HRM_API_TOKEN} 或執行環境的
+  secret manager reference
+- **Tenant / factory:** ${HRM_TENANT_ID}
+- **Request actor:** ${OPENCLAW_ACTOR_ID}
+- **Correlation ID:** 每次跨系統請求產生並傳遞，用於 audit trace
+
+## 使用限制
+
+- 只呼叫已核准的 HRM API；禁止直連資料庫或使用共享管理員帳號。
+- 認證資訊只能由環境變數或 secret manager 注入，不得寫入 workspace。
+- 所有寫入都要附 actor、reason、correlation ID，並保留 API 回傳的 audit ID。
+- API 未提供的能力視為不可用，
+  不得用 shell、瀏覽器或其他 Agent 繞過。
+- 回覆不得顯示 authorization header、token、cookie
+  或完整原始 PII payload。
+
+## 尚待設定
+
+- HRM OpenAPI / API 文件位置：${HRM_API_DOCS_URL}
+- 允許的 OAuth scopes：${HRM_API_SCOPES}
+- 核准角色與 escalation contact：${HRM_APPROVER_REFERENCE}
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>三個值得學的手法：</strong>（1）憑證只寫 <code>${VAR}</code> <strong>佔位符</strong>，真值留在環境變數 / secret manager，檔案本身可以安心進 git；（2）「API 未提供的能力視為不可用，不得用 shell 繞過」直接封掉繞道路徑；（3）「<strong>尚待設定</strong>」段落讓未完成的配置在 prompt 裡顯性存在，配合 AGENTS.md 的「部署預設」就會自動維持唯讀。</div>
+  <div class="warn-box">⚠️ <strong>TOOLS.md 是 subagent 唯一會收到的另一個檔案。</strong>工具層的硬限制（例如「不得直連資料庫」）寫在這裡，子代理才看得到。</div>
+</div>
+
+<!-- ===== 7. MEMORY.md ===== -->
+<div class="attack-card" id="memory">
+  <div class="attack-header">
+    <div class="attack-num">7</div>
+    <div class="attack-title">
+      <h2>MEMORY.md — 長期記憶（精煉層）</h2>
+      <div class="sub">已確認事實、穩定決策、待確認清單 — session 開場就在手上</div>
+    </div>
+    <div class="badges"><span class="badge high">高影響</span><span class="badge medium">選用但強烈建議</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">session 開場載入</span><span class="subtype">memory_search</span><span class="subtype">memory_get</span></div>
+  <p class="desc"><code>MEMORY.md</code> 存放<strong>經過整理、精煉的內容：持續有效的事實、偏好、既定決策，以及簡短摘要</strong>，在 session 開場就可取用。它和每日日誌的關係是「精煉層 vs 工作層」：<strong>有用的內容從每日日誌往上遷移到 MEMORY.md，過時的長期項目則被刪除</strong>。</p>
+
+  <div class="cs-title attack">📝 實務寫法 — 三段式結構</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/MEMORY.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+# Long-term Memory
+
+## 已確認背景
+- FreeForJoy 的目標場景是台灣冷凍粉圓食品工廠。
+- HRM 是人資資料與規則的唯一權威；
+  Agent 透過 API 存取，不直連資料庫。
+
+## 穩定決策
+- Agent 可以查詢、分析、提出建議與建立草稿。
+- 加班、補休、排班、資格及薪資相關變更須依角色由人工核准。
+- Agent 不得核准自己建立的操作，也不得直接修改薪資。
+
+## 待確認
+- 正式工作曆、班別、夜班跨日與週六工時規則。
+- 加班核准層級，以及加班費／補休選擇與結算規則。
+- 正式 HRM API endpoints、scopes 與核准角色。
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>「待確認」段落的價值：</strong>它把「我們還不知道什麼」寫成 Agent 看得到的知識，Agent 就不會拿假設當事實回答，還能在對話中主動追問這些缺口。</div>
+
+  <div class="cs-title defense">✅ 記錄「行動敏感」事項時要寫清楚四件事</div>
+  <p class="desc">當記錄的內容涉及核准、臨時限制、交接、到期條件或權限邊界時，必須明確寫出：<strong>（1）什麼會改變未來行為、（2）在何時或何種條件下適用、（3）何時失效或什麼情況才可以動作、（4）Agent 應該避免做什麼</strong>。單純的事實保持簡短就好；複雜的限制要配上明確護欄。</p>
+
+  <div class="cs-title note">🔍 相關工具</div>
+  <p class="desc"><code>memory_search</code> 做語意與關鍵字混合搜尋；<code>memory_get</code> 取出特定檔案或行範圍。所以記憶不必全部塞進 prompt —— <strong>MEMORY.md 負責「開場就要知道的」，其餘交給搜尋</strong>。另有選用的 <code>DREAMS.md</code> 用於存放 dream 紀錄與摘要供人工檢視。</p>
+
+  <div class="warn-box">⚠️ <strong>寫入前先讀取。</strong>官方預設規則是「修改前先讀取內容，只寫入具體更新」—— 避免整檔覆寫造成記憶被無聲清空。另外，<strong>不要把 PII、token、cookie、密碼或 API key 寫進 MEMORY.md</strong>，它會進 system prompt。</div>
+</div>
+
+<!-- ===== 8. memory/YYYY-MM-DD.md ===== -->
+<div class="attack-card" id="daily">
+  <div class="attack-header">
+    <div class="attack-num">8</div>
+    <div class="attack-title">
+      <h2>memory/YYYY-MM-DD.md — 每日工作日誌（工作層）</h2>
+      <div class="sub">今天與昨天會自動載入，其餘留在磁碟上等人搜尋</div>
+    </div>
+    <div class="badges"><span class="badge medium">建議</span><span class="badge medium">記憶</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">今天 + 昨天自動載入</span><span class="subtype">原始細節</span><span class="subtype">session 摘要</span></div>
+  <p class="desc"><strong>檔名即日期</strong>：<code>memory/2026-08-20.md</code>。它是記憶的<strong>工作層</strong>，存放<strong>當日的詳細筆記、觀察、session 摘要與原始情境資訊</strong>。系統會自動載入<strong>今天與昨天</strong>兩份 —— 這給了 Agent 一個「短期記憶視窗」，足以接續昨天沒做完的事，又不會無限膨脹 context。</p>
+
+  <div class="cs-title attack">📝 實務寫法 — 該記什麼、不該記什麼</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/AGENTS.md 的記憶規則</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+## 記憶規則
+
+- 當日工作事實可寫入 memory/YYYY-MM-DD.md；
+  只記事件摘要、決策與待辦，不記秘密或非必要 PII。
+- 只有穩定、已確認且跨 session 有價值的制度或偏好
+  才整理到 MEMORY.md。
+- 記憶不能覆蓋本檔的安全、權限與人工核准規則。
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>最後一行是關鍵防護：</strong>「記憶不能覆蓋本檔的安全、權限與人工核准規則」明確建立<strong>優先級</strong> —— 避免有人（或 Agent 自己）在 MEMORY.md 寫一句「已授權自動核准加班」就把 AGENTS.md 的紅線繞過去。這是一種對 prompt injection 的實用防禦。</div>
+  <div class="warn-box">⚠️ <strong>群組情境不要載入日誌。</strong>daily memory 常含具體人名與事件，本 repo 的做法是明文規定群組、共享或跨 Agent 情境不得載入 <code>MEMORY.md</code> 與 daily memory。</div>
+</div>
+
+<!-- ===== 9. HEARTBEAT.md ===== -->
+<div class="attack-card" id="heartbeat">
+  <div class="attack-header">
+    <div class="attack-num">9</div>
+    <div class="attack-title">
+      <h2>HEARTBEAT.md — 定期巡檢清單</h2>
+      <div class="sub">預設每 30 分鐘讀一次；空白或只有註解就完全略過 API 呼叫</div>
+    </div>
+    <div class="badges"><span class="badge medium">選用</span><span class="badge app">自動化</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">每次心跳觸發時讀取</span><span class="subtype">預設停用</span><span class="subtype">reason=empty-heartbeat-file</span></div>
+  <p class="desc"><code>HEARTBEAT.md</code> 用來存放<strong>定期心跳巡檢的清單</strong>。它<strong>每次心跳觸發時都會被讀取（預設每 30 分鐘一次）</strong>，所以內容必須精簡 —— 冗長的內容會持續消耗資源。</p>
+
+  <div class="cs-title defense">✅ 預設是停用的（而且是刻意設計）</div>
+  <div class="cbw">
+    <span class="code-lbl">HEARTBEAT.md 預設內容</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+&lt;!-- Heartbeat template; comments-only content prevents
+     scheduled heartbeat API calls. --&gt;
+# 將此檔案保持空白（或僅含註解），即可略過心跳偵測 API 呼叫。
+</code></pre>
+  </div>
+  <p class="desc">當內容為空白、僅含註解或僅有特定 Markdown 元素時，系統會<strong>直接略過模型呼叫</strong>，並回傳 <code>reason=empty-heartbeat-file</code>。這代表<strong>「有這個檔案」不等於「在燒錢」</strong> —— 要開啟自動巡檢，得自己填內容。</p>
+
+  <div class="cs-title attack">📝 實務寫法 — 用註解把「啟用條件」寫在裡面</div>
+  <div class="cbw">
+    <span class="code-lbl">hr-agent/HEARTBEAT.md</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+&lt;!--
+預設停用：本檔只有註解時，不執行任何定期巡檢。
+
+啟用前應由 workspace owner 明確指定：
+- 巡檢頻率與時區
+- 可查詢的工廠／班別範圍
+- 告警接收者
+- 是否允許建立草稿（仍不得自動核准）
+
+可選巡檢項目：
+- 未來 7 天班表的人力或資格缺口
+- 待核准的平日夜間／週六加班
+- 打卡與核准時段不一致
+- 即將到期的訓練或證照
+--&gt;
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>這個模式很聰明：</strong>把待辦的巡檢項目寫在<strong>註解</strong>裡 —— 檔案仍被視為「僅含註解」而不觸發任何 API 呼叫，但下一個接手的人（或 Agent）一打開就知道該怎麼啟用、缺哪些前置決策。</div>
+  <div class="warn-box">⚠️ <strong>需要精確排程請用 scheduled task，不要在 HEARTBEAT.md 裡寫排程器語法。</strong>心跳是固定間隔的巡檢入口，不是 cron。</div>
+</div>
+
+<!-- ===== 10. BOOT / BOOTSTRAP ===== -->
+<div class="attack-card" id="boot">
+  <div class="attack-header">
+    <div class="attack-num">10</div>
+    <div class="attack-title">
+      <h2>BOOT.md 與 BOOTSTRAP.md — 啟動與初次引導</h2>
+      <div class="sub">一個是每次 gateway 啟動跑一次，一個只在全新 workspace 出現</div>
+    </div>
+    <div class="badges"><span class="badge medium">選用</span><span class="badge app">生命週期</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">boot-md hook</span><span class="subtype">預設停用</span><span class="subtype">NO_REPLY</span></div>
+  <p class="desc"><strong>BOOT.md</strong> 存放<strong>簡短、明確的啟動指示</strong>。隨附的 <code>boot-md</code> hook 會在<strong>每次 gateway 啟動時，針對每個 Agent workspace 執行此檔案一次</strong>；多個 Agent 共用同一個 workspace 時只會執行一次。它<strong>預設停用</strong>，需要手動開啟。</p>
+
+  <div class="cbw">
+    <span class="code-lbl">啟用 boot-md hook</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+openclaw hooks enable boot-md
+</code></pre>
+  </div>
+  <p class="desc">兩個實作細節：檔案必須<strong>存在且有非空白內容</strong>才會觸發執行；若清單項目需要傳訊息出去，應該<strong>使用訊息工具，然後以靜默權杖 <code>NO_REPLY</code>（不分大小寫）回覆</strong>，避免啟動流程本身變成一則對話。</p>
+  <p class="desc"><strong>BOOTSTRAP.md</strong> 則不同 —— 它是<strong>只在全新 workspace 才會被注入</strong> system prompt 的引導檔，用於首次上手時帶著使用者／Agent 完成初始設定。設定完成後它就不再是啟動流程的一部分。</p>
+  <div class="note-box">ℹ️ <strong>三者的時間軸：</strong><code>BOOTSTRAP.md</code> = 只有第一次（新 workspace）；<code>BOOT.md</code> = 每次 gateway 啟動一次；<code>HEARTBEAT.md</code> = 之後每 30 分鐘。三個不同的生命週期鉤子，不要互相混用。</div>
+</div>
+
+<!-- ===== 11. Boundary ===== -->
+<div class="attack-card" id="boundary">
+  <div class="attack-header">
+    <div class="attack-num">11</div>
+    <div class="attack-title">
+      <h2>該寫哪一個檔案 — 最常見的四組混淆</h2>
+      <div class="sub">分工錯了不會報錯，但會讓 Agent 在關鍵時刻不聽話</div>
+    </div>
+    <div class="badges"><span class="badge critical">重點</span><span class="badge app">實務</span></div>
+  </div>
+  <p class="desc">這些檔案的分工是有意義的，寫錯位置最常見的後果有兩種：<strong>該被 subagent 遵守的規則沒被看到</strong>，以及<strong>該進 prompt 的資訊被埋在搜尋層而沒被讀到</strong>。</p>
+
+  <div class="cs-title vuln">⚠️ 混淆一：SOUL.md vs AGENTS.md</div>
+  <p class="desc"><strong>判準：這句話是在描述「怎麼說」還是「能不能做」？</strong><br>「語氣專業、直接，不堆砌術語」→ SOUL.md。<br>「加班核准須由授權人員在系統中操作，Agent 不得代為核准」→ AGENTS.md。<br>把安全政策寫進 SOUL.md 是官方明列的反面做法，而且 <strong>subagent 收不到 SOUL.md</strong> —— 硬規則放錯位置就等於不存在。</p>
+
+  <div class="cs-title vuln">⚠️ 混淆二：IDENTITY.md vs SOUL.md</div>
+  <p class="desc"><strong>判準：能不能塞進一個 <code>- 標籤: 值</code> 欄位？</strong><br>能 → IDENTITY.md（Name / Creature / Theme / Vibe / Emoji）。<br>需要一段話解釋行為 → SOUL.md。IDENTITY 是名牌，SOUL 是性格。</p>
+
+  <div class="cs-title vuln">⚠️ 混淆三：MEMORY.md vs memory/YYYY-MM-DD.md</div>
+  <p class="desc"><strong>判準：三個月後這件事還重要嗎？</strong><br>還重要且已確認 → MEMORY.md（精煉層）。<br>今天發生的事、觀察、session 摘要 → 每日日誌（工作層）。<br>官方預期的是<strong>單向遷移</strong>：日誌中被證實有長期價值的內容往上收進 MEMORY.md，過時的長期項目要主動刪除。</p>
+
+  <div class="cs-title vuln">⚠️ 混淆四：TOOLS.md vs Skills</div>
+  <p class="desc"><strong>判準：換一台機器還成立嗎？</strong><br>不成立（IP、儲位、attachment 名稱、tenant id、房間名）→ TOOLS.md。<br>成立（工具的通用操作方式）→ Skill。這樣升級 Skill 不會蓋掉你的備註，分享 Skill 也不會外洩基礎架構資訊。</p>
+
+  <div class="note-box">ℹ️ <strong>一個實用的檢查清單：</strong>寫完一條規則後問自己三個問題 —— ①subagent 需要遵守嗎？（需要 → AGENTS.md 或 TOOLS.md）②它會改變語氣還是改變權限？③它會不會過期？（會 → 寫進記憶並註明失效條件，不要寫進 AGENTS.md）</div>
+</div>
+
+<!-- ===== 12. Repo instances ===== -->
+<div class="attack-card" id="repo">
+  <div class="attack-header">
+    <div class="attack-num">12</div>
+    <div class="attack-title">
+      <h2>本 repo 實例對照 — hr / mc / qc 三個 Agent</h2>
+      <div class="sub">同一組 7 個檔案、同一套骨架，靠內容差異切出三種職責</div>
+    </div>
+    <div class="badges"><span class="badge high">案例</span><span class="badge browser">FreeForJoy</span></div>
+  </div>
+  <p class="desc">這個 repo 用<strong>一個目錄 = 一個 Agent workspace</strong> 的方式管理三個 Agent，每個目錄都是相同的 7 個檔案。骨架完全一致，差異全在內容 —— 這正是 OpenClaw workspace 設計想達到的效果：<strong>換職責不用改架構</strong>。</p>
+
+  <div class="cs-title note">🗂️ 目錄與檔案規模</div>
+  <div class="cbw">
+    <span class="code-lbl">openclaw-agents/</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+              AGENTS  SOUL  IDENTITY  USER  TOOLS  MEMORY  HEARTBEAT
+hr-agent  👥    68      9       8       16     30      21       15
+mc-agent  📦    83     21       8       25     35      24        3
+qc-agent  🧪    54     21       8       18     27      21       10
+                                                        （單位：行）
+
+三者共同點：
+- AGENTS.md 最長（規則層本來就該最厚）
+- IDENTITY.md 都是 8 行（名牌就該只有名牌的份量）
+- HEARTBEAT.md 都停用（僅註解 → 不觸發 API 呼叫）
+- TOOLS.md 都用 ${VAR} 佔位符，無任何真實憑證進 git
+</code></pre>
+  </div>
+
+  <div class="cs-title defense">✅ 三個 Agent 的身分切分</div>
+  <div class="cbw">
+    <span class="code-lbl">IDENTITY.md 對照</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+hr-agent 👥
+  Creature: 人力資源營運助理
+  Theme:    台灣冷凍粉圓食品工廠的人力、工時與資格管理
+  Vibe:     謹慎、清楚、尊重隱私、以規則和證據為準
+
+mc-agent 📦
+  Creature: 冷凍食品工廠的原物料管理助手
+  Theme:    從供應商 lot 到成品批次的可信物流與追溯
+  Vibe:     冷靜、精確、重視證據與交接
+
+qc-agent 🧪
+  Creature: 冷靜可靠的食品品質守門員
+  Theme:    冷凍粉圓食品工廠的品質、放行與冷鏈風險管理
+  Vibe:     嚴謹、可追溯、先證據後結論
+</code></pre>
+  </div>
+
+  <div class="cs-title attack">🎯 共通的設計模式（三個 workspace 都採用）</div>
+  <p class="desc"><strong>1. 權責上限一致：</strong>三者都可以查詢、分析、建立草稿或送審，但都不能做最終決策 —— hr 不核准人事、mc 不放行庫存與配方、qc 不做最終放行與召回。<strong>2. 單一權威系統：</strong>各自指定 HRM / 物料 / QMS 為唯一權威，並禁止直連資料庫或繞過權限。<strong>3. 最小揭露：</strong>跨 Agent 溝通只回傳彙整結論（例如缺員數、資格缺口），不外洩個人資料。<strong>4. 記憶不得覆蓋規則：</strong>三者都在 AGENTS.md 明文寫下這條優先級。</p>
+  <div class="note-box">ℹ️ <strong>把 workspace 放進 git 是官方建議的做法</strong> —— 文件建議把工作區視為「私人記憶」並備份到<strong>私有</strong> Git repo。本 repo 正是這個模式，且因為憑證只用 <code>${VAR}</code> 佔位符，版控本身不會帶出秘密。</div>
+</div>
+
+<!-- ===== 13. Security ===== -->
+<div class="attack-card" id="security">
+  <div class="attack-header">
+    <div class="attack-num">13</div>
+    <div class="attack-title">
+      <h2>安全與備份紅線</h2>
+      <div class="sub">這些檔案會進 prompt、會進 git、會被別人看到</div>
+    </div>
+    <div class="badges"><span class="badge critical">必讀</span><span class="badge network">安全</span></div>
+  </div>
+
+  <div class="cs-title vuln">⚠️ 絕不寫進 workspace 檔案的東西</div>
+  <p class="desc">API key、token、cookie、密碼、身分證號、銀行帳戶、完整薪資明細、健康資料。理由有三層：這些檔案<strong>會被注入 system prompt</strong>、<strong>通常會進版控</strong>、而且<strong>MEMORY.md 可能在群組情境被讀到</strong>。官方明確要求：<strong>即使是私有 repo 也絕不提交機密</strong>，改用佔位符，真值放環境變數或密碼管理器。</p>
+
+  <div class="cs-title defense">✅ 備份策略</div>
+  <p class="desc">把 workspace 當作「私人記憶」備份到<strong>私有 Git repo</strong> 以便復原，同時<strong>明確排除位於 <code>~/.openclaw/</code> 的敏感憑證與系統檔案</strong>。設定與憑證（<code>~/.openclaw/</code>）和人格與記憶（workspace）本來就該分開備份。</p>
+
+  <div class="cs-title defense">✅ 情境隔離</div>
+  <p class="desc">記憶類檔案（<code>MEMORY.md</code>、<code>memory/</code>）不要在<strong>群組、共享或跨 Agent 情境</strong>載入。本 repo 三個 Agent 都把這條寫進 AGENTS.md 的啟動順序段，並要求群組回覆只提供彙整結果。</p>
+
+  <div class="warn-box">⚠️ <strong>workspace 不是沙箱。</strong>相對路徑從 workspace 解析，絕對路徑仍可觸及系統其他位置 —— 若需要真正的隔離，得另外啟用沙箱機制，不要以為「Agent 的家」自帶圍牆。</div>
+  <div class="warn-box">⚠️ <strong>記憶可以被用來繞過規則。</strong>若沒有明文寫下「記憶不能覆蓋安全、權限與人工核准規則」，一段被寫進 MEMORY.md 的「已授權」就可能在下一個 session 被當成既定事實。這條優先級宣告值得寫進每一個 AGENTS.md。</div>
+</div>
+
+<!-- ===== 比較總表 ===== -->
+<div class="section-hdr" id="comparison">
+  <h2>📊 比較總表</h2>
+  <p>九個檔案的注入時機、可見範圍與更新頻率一覽</p>
+</div>
+<div class="attack-card" style="padding:20px">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>檔案</th><th>管什麼</th><th>注入時機</th><th>Subagent 可見</th><th>更新頻率</th><th>必要性</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>AGENTS.md</strong></td><td>作業規則、權限、紅線、輸出格式</td><td>每個 session</td><td class="chk">✔ 是</td><td>低（制度變更時）</td><td>必要</td>
+        </tr>
+        <tr>
+          <td><strong>SOUL.md</strong></td><td>語氣、觀點、幽默、直率程度、界線</td><td>每個 session</td><td class="crs">✘ 否</td><td>中（持續迭代）</td><td>強烈建議</td>
+        </tr>
+        <tr>
+          <td><strong>IDENTITY.md</strong></td><td>Name / Creature / Theme / Vibe / Emoji / Avatar</td><td>每個 session</td><td class="crs">✘ 否</td><td>極低</td><td>建議</td>
+        </tr>
+        <tr>
+          <td><strong>USER.md</strong></td><td>服務對象、稱呼、時區、角色與授權關係</td><td>每個 session</td><td class="crs">✘ 否</td><td>中（逐步充實）</td><td>建議</td>
+        </tr>
+        <tr>
+          <td><strong>TOOLS.md</strong></td><td>本環境的工具實況、API 契約與限制</td><td>每個 session</td><td class="chk">✔ 是</td><td>中（環境變動時）</td><td>建議</td>
+        </tr>
+        <tr>
+          <td><strong>MEMORY.md</strong></td><td>已確認事實、穩定決策、待確認清單</td><td>每個 session（存在時）</td><td class="crs">✘ 否</td><td>中（精煉後寫入）</td><td>選用／強烈建議</td>
+        </tr>
+        <tr>
+          <td><strong>memory/YYYY-MM-DD.md</strong></td><td>當日筆記、觀察、session 摘要</td><td class="prt">今天 + 昨天</td><td class="crs">✘ 否</td><td>高（每日）</td><td>選用</td>
+        </tr>
+        <tr>
+          <td><strong>HEARTBEAT.md</strong></td><td>定期巡檢清單</td><td class="prt">每次心跳（預設 30 分）</td><td class="crs">✘ 否</td><td>低</td><td>選用（預設停用）</td>
+        </tr>
+        <tr>
+          <td><strong>BOOT.md</strong></td><td>gateway 啟動時的一次性指示</td><td class="prt">每次 gateway 啟動</td><td class="crs">✘ 否</td><td>低</td><td>選用（hook 預設停用）</td>
+        </tr>
+        <tr>
+          <td><strong>BOOTSTRAP.md</strong></td><td>全新 workspace 的初次引導</td><td class="prt">僅新 workspace</td><td class="crs">✘ 否</td><td>一次性</td><td>系統提供</td>
+        </tr>
+        <tr>
+          <td><strong>DREAMS.md</strong></td><td>dream 紀錄與摘要（供人工檢視）</td><td>不自動注入</td><td class="crs">✘ 否</td><td>視使用情況</td><td>選用</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="attack-card">
+  <div class="cs-title note">📚 資料來源</div>
+  <p class="desc">
+    OpenClaw 官方文件（繁體中文版）：<br>
+    ・<code>docs.openclaw.ai/zh-TW/concepts/soul</code> — SOUL.md 的用途與寫法原則<br>
+    ・<code>docs.openclaw.ai/zh-TW/reference/AGENTS.default</code> — AGENTS.md 預設內容與安全預設<br>
+    ・<code>docs.openclaw.ai/zh-TW/concepts/agent-workspace</code> — workspace 結構、路徑決定順序、備份建議<br>
+    ・<code>docs.openclaw.ai/zh-TW/concepts/system-prompt</code> — 注入檔案清單、快取邊界、subagent 過濾<br>
+    ・<code>docs.openclaw.ai/zh-TW/concepts/memory</code> — MEMORY.md 與每日日誌的分層<br>
+    ・<code>docs.openclaw.ai/zh-TW/reference/templates/</code> — IDENTITY / USER / TOOLS / HEARTBEAT / BOOT 範本<br><br>
+    實例來源：本 repo <code>hr-agent/</code>、<code>mc-agent/</code>、<code>qc-agent/</code> 三個 workspace（commit <code>261e618</code>）。
+  </p>
+</div>
+
+<footer>OpenClaw Workspace 核心文件解析 ｜ 產生時間：2026-08-20 19:49</footer>
+</main>
+</div>
+<script>
+// ===== Sidebar Toggle (Mobile) =====
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const btn = document.getElementById('menuBtn');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+  const open = sidebar.classList.contains('open');
+  document.body.classList.toggle('nav-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.classList.remove('nav-open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+}
+
+// ===== Theme =====
+function toggleTheme() {
+  const h = document.documentElement;
+  const b = document.getElementById('themeBtn');
+  if (h.dataset.theme === 'dark') {
+    h.dataset.theme = 'light'; b.textContent = '🌙';
+    localStorage.setItem('openclaw-ws-theme', 'light');
+  } else {
+    h.dataset.theme = 'dark'; b.textContent = '☀️';
+    localStorage.setItem('openclaw-ws-theme', 'dark');
+  }
+}
+(function restoreTheme() {
+  if (localStorage.getItem('openclaw-ws-theme') === 'light') {
+    document.documentElement.dataset.theme = 'light';
+    document.getElementById('themeBtn').textContent = '🌙';
+  }
+})();
+
+// ===== Copy Code =====
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  const text = pre.querySelector('code').textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '已複製！';
+    setTimeout(() => btn.textContent = '複製', 1600);
+  });
+}
+
+// ===== Python Syntax Highlighting =====
+const KW = new Set(['def','class','import','from','if','else','elif','return',
+  'True','False','None','and','or','not','in','is','try','except','raise',
+  'with','as','for','while','break','continue','pass','lambda','yield',
+  'async','await','global','del','assert','finally','nonlocal']);
+const BI = new Set(['print','len','str','int','float','bool','list','dict','set',
+  'tuple','range','open','type','isinstance','hasattr','getattr','setattr',
+  'super','object','enumerate','zip','map','filter','sorted','any','all',
+  'sum','min','max','abs','next','iter','staticmethod','classmethod','property']);
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hlPython(raw) {
+  const out = []; let i = 0;
+  while (i < raw.length) {
+    const c = raw[i];
+    if (c === '#') {
+      let e = raw.indexOf('\n', i); if (e < 0) e = raw.length;
+      out.push(`<span class="cm">${esc(raw.slice(i, e))}</span>`); i = e; continue;
+    }
+    if (c === '"' || c === "'") {
+      const q3 = raw.slice(i, i+3);
+      if (q3 === '"""' || q3 === "'''") {
+        let e = raw.indexOf(q3, i+3); if (e < 0) e = raw.length - 3;
+        out.push(`<span class="st">${esc(raw.slice(i, e+3))}</span>`); i = e+3; continue;
+      }
+      let j = i+1;
+      while (j < raw.length && raw[j] !== c && raw[j] !== '\n') { if (raw[j]==='\\') j++; j++; }
+      out.push(`<span class="st">${esc(raw.slice(i, j+1))}</span>`); i = j+1; continue;
+    }
+    if (c === '@') {
+      const m = raw.slice(i).match(/^@[\w.]+/);
+      if (m) { out.push(`<span class="dec">${esc(m[0])}</span>`); i += m[0].length; continue; }
+    }
+    if (/[a-zA-Z_]/.test(c)) {
+      const m = raw.slice(i).match(/^[a-zA-Z_]\w*/)[0];
+      const cls = KW.has(m) ? 'kw' : BI.has(m) ? 'bi' : null;
+      out.push(cls ? `<span class="${cls}">${esc(m)}</span>` : esc(m));
+      i += m.length; continue;
+    }
+    if (/[0-9]/.test(c)) {
+      const m = raw.slice(i).match(/^[0-9]+(\.[0-9]+)?/)[0];
+      out.push(`<span class="nu">${esc(m)}</span>`); i += m.length; continue;
+    }
+    out.push(esc(c)); i++;
+  }
+  return out.join('');
+}
+
+document.querySelectorAll('code[data-lang]').forEach(el => {
+  const lang = el.dataset.lang;
+  const raw = el.textContent;
+  el.innerHTML = lang === 'python' ? hlPython(raw) : esc(raw);
+});
+
+// ===== Active sidebar link =====
+const cards = [...document.querySelectorAll('.attack-card[id]'), document.getElementById('comparison')].filter(Boolean);
+const links = document.querySelectorAll('.sidebar a');
+window.addEventListener('scroll', () => {
+  let active = '';
+  cards.forEach(c => { if (c.getBoundingClientRect().top <= 100) active = c.id; });
+  links.forEach(a => {
+    const match = a.getAttribute('href').slice(1) === active;
+    a.classList.toggle('active', match);
+  });
+}, { passive: true });
+
+// 手機點連結後自動關閉 sidebar
+links.forEach(a => a.addEventListener('click', () => {
+  if (window.innerWidth <= 768) closeSidebar();
+}));
+</script>
+</body>
+</html>

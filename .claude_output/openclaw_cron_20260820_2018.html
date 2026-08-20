@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Cron 排程完整解析</title>
+<style>
+:root[data-theme="dark"] {
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#1e2235;--border:#2d3148;
+  --text:#e2e8f0;--muted:#8892a4;--primary:#818cf8;--primary-light:#1e2048;
+  --success:#34d399;--success-light:#0d2e20;--warning:#fbbf24;--warning-light:#2d2008;
+  --danger:#f87171;--danger-light:#2d1010;--info:#60a5fa;--info-light:#0d1e3d;
+  --orange:#fb923c;--orange-light:#2d1a08;--code-bg:#252840;--code-text:#c4b5fd;
+  --sidebar-bg:#13151f;
+}
+:root[data-theme="light"] {
+  --bg:#f8f9fa;--surface:#fff;--surface2:#f1f5f9;--border:#e2e8f0;
+  --text:#1a202c;--muted:#718096;--primary:#4f46e5;--primary-light:#ede9fe;
+  --success:#16a34a;--success-light:#dcfce7;--warning:#d97706;--warning-light:#fef3c7;
+  --danger:#dc2626;--danger-light:#fee2e2;--info:#2563eb;--info-light:#dbeafe;
+  --orange:#ea580c;--orange-light:#ffedd5;--code-bg:#f1f5f9;--code-text:#5b21b6;
+  --sidebar-bg:#f0f2f5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+button,a{touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.topbar{position:sticky;top:0;z-index:100;min-height:57px;background:var(--surface);border-bottom:1px solid var(--border);padding:6px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.topbar h1{font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap}
+.topbar .meta{font-size:12px;color:var(--muted);flex:1;text-align:center}
+.theme-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 12px;cursor:pointer;font-size:15px;color:var(--text);flex-shrink:0}
+.layout{display:grid;grid-template-columns:230px 1fr;width:100%;min-height:calc(100vh - 57px);max-width:1300px;margin:0 auto}
+.sidebar{background:var(--sidebar-bg);border-right:1px solid var(--border);padding:18px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto}
+.sidebar h3{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sidebar ol{list-style:none}
+.sidebar li{margin-bottom:1px}
+.sidebar a{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 9px;border-radius:5px;text-decoration:none;color:var(--muted);font-size:12.5px;transition:color 0.15s,background 0.15s}
+.sidebar a:hover,.sidebar a.active{color:var(--primary);background:var(--primary-light)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot.critical{background:var(--danger)}.dot.high{background:var(--orange)}.dot.medium{background:var(--warning)}
+.sidebar-sep{margin:14px 0 10px}
+main{min-width:0;padding:28px 36px;max-width:880px}
+.attack-card{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;margin-bottom:28px;scroll-margin-top:72px}
+.attack-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.attack-num{background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px}
+.attack-title h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.attack-title .sub{font-size:12.5px;color:var(--muted)}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto;flex-shrink:0}
+.badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge.critical{background:var(--danger-light);color:var(--danger)}
+.badge.high{background:var(--orange-light);color:var(--orange)}
+.badge.medium{background:var(--warning-light);color:var(--warning)}
+.badge.network{background:var(--info-light);color:var(--info)}
+.badge.app{background:var(--primary-light);color:var(--primary)}
+.badge.browser{background:var(--success-light);color:var(--success)}
+.subtypes{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px 38px}
+.subtype{padding:1px 8px;border-radius:4px;font-size:11px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.desc{color:var(--muted);font-size:13.5px;margin:0 0 18px 38px;line-height:1.75}
+.desc strong{color:var(--text)}
+.cs-title{font-size:12.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.cs-title.vuln{color:var(--danger)}.cs-title.attack{color:var(--warning)}.cs-title.defense{color:var(--success)}.cs-title.note{color:var(--info)}
+.cbw{position:relative;min-width:0;margin-bottom:10px}
+.code-lbl{position:absolute;top:8px;right:46px;font-size:10px;color:var(--muted);font-family:monospace;z-index:1}
+.copy-btn{position:absolute;top:6px;right:7px;background:var(--surface);border:1px solid var(--border);border-radius:4px;min-width:44px;min-height:32px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--muted);z-index:1}
+.copy-btn:hover{color:var(--text)}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;max-width:100%;padding:14px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;font-size:12.5px;line-height:1.55;margin:0}
+code{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;color:var(--code-text)}
+.kw{color:#818cf8;font-weight:600}[data-theme="light"] .kw{color:#4f46e5}
+.st{color:#86efac}[data-theme="light"] .st{color:#15803d}
+.cm{color:#64748b;font-style:italic}
+.dec{color:#fb923c}[data-theme="light"] .dec{color:#c2410c}
+.bi{color:#67e8f9}[data-theme="light"] .bi{color:#0284c7}
+.nu{color:#fbbf24}[data-theme="light"] .nu{color:#b45309}
+.note-box{background:var(--info-light);border:1px solid var(--info);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--info);margin-bottom:14px}
+.warn-box{background:var(--warning-light);border:1px solid var(--warning);border-left-width:3px;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--warning);margin-bottom:14px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.section-hdr{margin:36px 0 14px}.section-hdr h2{font-size:18px;font-weight:700;margin-bottom:3px}.section-hdr p{font-size:13px;color:var(--muted)}
+.table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--surface2);padding:9px 11px;text-align:left;font-weight:600;border:1px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap}
+td{padding:9px 11px;border:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--surface2)}
+.chk{color:var(--success)}.prt{color:var(--warning)}.crs{color:var(--danger)}
+footer{text-align:center;padding:20px;color:var(--muted);font-size:11px;border-top:1px solid var(--border);margin-top:20px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ===== RWD ===== */
+.menu-btn{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:44px;min-height:44px;padding:5px 10px;cursor:pointer;font-size:18px;color:var(--text);flex-shrink:0;line-height:1}
+.sidebar-overlay{display:none;position:fixed;top:57px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:90}
+.sidebar-overlay.open{display:block}
+
+/* Tablet */
+@media(max-width:1024px){
+  .layout{grid-template-columns:200px 1fr}
+  main{padding:20px 24px}
+  .topbar .meta{display:none}
+}
+
+/* Mobile */
+@media(max-width:768px){
+  html{scroll-padding-top:64px}
+  body.nav-open{overflow:hidden}
+  .menu-btn{display:block}
+  .topbar{padding:6px 12px;gap:10px}
+  .topbar h1{font-size:14px;line-height:1.25;white-space:normal;min-width:0;flex:1}
+  .topbar .meta{display:none}
+  .theme-btn{padding:0;font-size:16px}
+  .layout{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;top:57px;left:-84vw;width:min(82vw,320px);
+    height:calc(100vh - 57px);z-index:95;padding:14px;
+    transition:left 0.25s ease;border-right:1px solid var(--border)
+  }
+  .sidebar.open{left:0}
+  .sidebar-overlay{top:57px}
+  .sidebar a{min-height:44px;padding:9px 10px;font-size:14px}
+  main{padding:14px 12px;max-width:100%;width:100%}
+  .attack-card{border-radius:10px;padding:14px;margin-bottom:16px;scroll-margin-top:64px}
+  .attack-header{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px 10px}
+  .attack-num{min-width:30px;height:30px;margin-top:0}
+  .attack-title{min-width:0}
+  .attack-title h2{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+  .attack-title .sub{font-size:13px;line-height:1.5}
+  .badges{grid-column:1 / -1;margin-left:0;width:100%;gap:8px}
+  .badge{padding:4px 10px;font-size:11.5px}
+  .desc{margin-left:0;font-size:16px;line-height:1.7}
+  .subtypes{margin-left:0;gap:8px}
+  .subtype{padding:4px 8px;font-size:12px}
+  .cs-title{font-size:14px;line-height:1.45;align-items:flex-start}
+  .cbw{padding-top:48px}
+  .code-lbl{display:none}
+  .copy-btn{top:0;right:0;min-height:44px;padding:0 12px;font-size:12px}
+  pre{font-size:12px;padding:12px;line-height:1.6}
+  .note-box,.warn-box{font-size:14px;line-height:1.6}
+  .section-hdr h2{font-size:16px}
+  .section-hdr p{font-size:14px}
+  .table-wrap{margin-left:-2px;margin-right:-2px;border:1px solid var(--border);border-radius:8px}
+  table{min-width:760px;font-size:12px}
+  th,td{padding:8px 9px}
+  footer{padding:18px 10px;font-size:12px}
+}
+
+@media(max-width:420px){
+  .topbar h1{font-size:13px}
+  main{padding:10px}
+  .attack-card{padding:12px}
+  pre{font-size:11.5px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="menu-btn" onclick="toggleSidebar()" id="menuBtn" aria-label="開啟選單" aria-expanded="false" aria-controls="siteSidebar">☰</button>
+  <h1>⏰ OpenClaw Cron 排程完整解析</h1>
+  <span class="meta">2026-08-20 &nbsp;｜&nbsp; 五種排程 / 四種 payload / Session 模式 / Heartbeat 對比 &nbsp;｜&nbsp; 依官方文件整理</span>
+  <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
+</header>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="layout">
+<nav class="sidebar" id="siteSidebar">
+  <h3>目錄</h3>
+  <ol>
+    <li><a href="#what"><span class="dot critical"></span>Cron 是什麼</a></li>
+    <li><a href="#schedule"><span class="dot critical"></span>五種排程種類</a></li>
+    <li><a href="#tz"><span class="dot high"></span>時區規則與抖動</a></li>
+    <li><a href="#payload"><span class="dot critical"></span>四種 payload</a></li>
+    <li><a href="#session"><span class="dot high"></span>Session 模式</a></li>
+    <li><a href="#delivery"><span class="dot high"></span>傳遞與路由</a></li>
+    <li><a href="#cli"><span class="dot medium"></span>CLI 指令總覽</a></li>
+    <li><a href="#config"><span class="dot medium"></span>設定欄位</a></li>
+    <li><a href="#heartbeat"><span class="dot critical"></span>Cron vs Heartbeat</a></li>
+    <li><a href="#tasks"><span class="dot medium"></span>背景任務帳本</a></li>
+    <li><a href="#retry"><span class="dot high"></span>重試、逾時與預算</a></li>
+    <li><a href="#security"><span class="dot critical"></span>安全紅線</a></li>
+    <li><a href="#troubleshoot"><span class="dot high"></span>疑難排解</a></li>
+  </ol>
+  <div class="sidebar-sep">
+    <h3>快速跳轉</h3>
+    <ol><li><a href="#comparison">📊 比較總表</a></li></ol>
+  </div>
+</nav>
+<main>
+
+<!-- 1 -->
+<div class="attack-card" id="what">
+  <div class="attack-header">
+    <div class="attack-num">1</div>
+    <div class="attack-title">
+      <h2>Cron 是什麼 — 跑在 gateway 裡的內建排程器</h2>
+      <div class="sub">存工作、按時喚醒 Agent、把輸出路由到頻道／webhook／或哪裡都不去</div>
+    </div>
+    <div class="badges"><span class="badge critical">基礎</span><span class="badge app">架構</span></div>
+  </div>
+  <div class="subtypes"><span class="subtype">gateway process</span><span class="subtype">SQLite 持久化</span><span class="subtype">重啟後仍存活</span></div>
+  <p class="desc">Cron 是 OpenClaw <strong>內建的排程器</strong>：它負責儲存工作、在指定時間喚醒 Agent，並把輸出路由到聊天頻道、webhook，或不送任何地方。</p>
+  <div class="warn-box">⚠️ <strong>最重要的一件事：排程器跑在 gateway 行程裡，不在模型裡。</strong>所以 <strong>gateway 必須持續運行</strong>，排程才會觸發。筆電闔上、gateway 沒起來 = 排程不會跑。</div>
+  <p class="desc">工作定義、待執行狀態與執行歷史都<strong>持久化在 SQLite</strong>，因此排程能跨 gateway 重啟存活。舊版的 JSON 檔會被遷移一次，並改名加上 <code>.migrated</code> 後綴。</p>
+</div>
+
+<!-- 2 -->
+<div class="attack-card" id="schedule">
+  <div class="attack-header">
+    <div class="attack-num">2</div>
+    <div class="attack-title">
+      <h2>五種排程種類</h2>
+      <div class="sub">不只有 cron 運算式 — 還有一次性、固定間隔、以及兩種事件觸發</div>
+    </div>
+    <div class="badges"><span class="badge critical">核心</span><span class="badge browser">排程</span></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>種類</th><th>旗標</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>at</code></td><td><code>--at</code></td><td>一次性時間點（ISO 8601，或相對時間如 <code>20m</code>）</td></tr>
+        <tr><td><code>every</code></td><td><code>--every</code></td><td>固定間隔（<code>10m</code>、<code>1h</code>、<code>1d</code>）</td></tr>
+        <tr><td><code>cron</code></td><td><code>--cron</code></td><td>5 或 6 欄位 cron 運算式，可搭 <code>--tz</code></td></tr>
+        <tr><td><code>on-exit</code></td><td><code>--on-exit</code></td><td>事件觸發：被監看的命令結束時觸發一次</td></tr>
+        <tr><td><code>stream</code></td><td><code>--stream-command</code></td><td>事件觸發：由受監督的長時間執行命令產生的批次行觸發</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note-box">ℹ️ <strong><code>on-exit</code> 與 <code>stream</code> 常被忽略，但它們把 cron 從「時鐘」變成「事件系統」</strong>——例如監看一個長時間跑的 build，結束時自動觸發一輪 Agent 分析。<code>stream</code> 需要 <code>cron.triggers.enabled: true</code> 才能用（見安全章節）。</div>
+  <div class="warn-box">⚠️ <strong>Stream 排程若在 60 秒內連續失敗 5 次，會維持錯誤狀態直到手動重新啟用</strong>——它不會自己無限重試。</div>
+</div>
+
+<!-- 3 -->
+<div class="attack-card" id="tz">
+  <div class="attack-header">
+    <div class="attack-num">3</div>
+    <div class="attack-title">
+      <h2>時區規則與 top-of-hour 抖動</h2>
+      <div class="sub">兩個預設值會讓人踩坑：UTC 與 0–5 分鐘隨機偏移</div>
+    </div>
+    <div class="badges"><span class="badge high">易踩雷</span><span class="badge network">時間</span></div>
+  </div>
+  <div class="cs-title vuln">⚠️ 時區的三條規則</div>
+  <p class="desc"><strong>① 沒帶時區的時間戳一律視為 UTC。</strong>寫 <code>--at "2027-02-01T16:00:00"</code> 而心裡想的是台北時間 → 會差 8 小時。<br><strong>②</strong> 要用當地時間解讀日期，得明確加 <code>--tz</code>（IANA 時區名，例如 <code>--tz America/New_York</code>、<code>--tz Asia/Taipei</code>）。<br><strong>③ 沒有 <code>--tz</code> 的 cron 運算式，使用 gateway 主機的時區</strong>——注意這和 <code>at</code> 的預設（UTC）不一致。</p>
+
+  <div class="cs-title note">🎲 整點抖動（staggering）</div>
+  <p class="desc">針對<strong>整點</strong>的 cron 運算式，系統會加上 <strong>0–5 分鐘的隨機偏移</strong>，避免大量工作在同一秒擠在一起。若你需要精準在整點執行，加 <code>--exact</code>。</p>
+  <div class="note-box">ℹ️ <strong>所以「我設 0 7 * * * 但它 7:03 才跑」不是 bug</strong>，是刻意的分散設計。真的要精確就用 <code>--exact</code>。</div>
+</div>
+
+<!-- 4 -->
+<div class="attack-card" id="payload">
+  <div class="attack-header">
+    <div class="attack-num">4</div>
+    <div class="attack-title">
+      <h2>四種 payload — 一個工作只能有一種</h2>
+      <div class="sub">要不要花模型的錢，取決於你選哪一種</div>
+    </div>
+    <div class="badges"><span class="badge critical">核心</span><span class="badge app">執行</span></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Payload</th><th>旗標</th><th>執行方式</th><th>會呼叫模型？</th></tr></thead>
+      <tbody>
+        <tr><td>系統事件</td><td><code>--system-event &lt;text&gt;</code></td><td>排入主要 session 的事件佇列</td><td class="crs">✘ 不呼叫</td></tr>
+        <tr><td>Agent 訊息</td><td><code>--message &lt;text&gt;</code></td><td>由模型驅動的 Agent 輪次</td><td class="chk">✔ 會</td></tr>
+        <tr><td>命令</td><td><code>--command &lt;shell&gt;</code></td><td>在 gateway 主機執行 shell／行程</td><td class="crs">✘ 不呼叫</td></tr>
+        <tr><td>腳本</td><td><code>--script &lt;file｜-&gt;</code></td><td>無介面 code mode，使用 Agent 工具</td><td class="prt">部分</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note-box">ℹ️ <strong>選型建議：</strong>單純提醒自己 → <code>--system-event</code>（零模型成本，只是把事件排進主 session）。需要判斷與寫作（每日摘要、報告）→ <code>--message</code>。純機械動作（備份、清檔、跑腳本）→ <code>--command</code>。要用 Agent 工具但不需要對話 → <code>--script</code>。</div>
+</div>
+
+<!-- 5 -->
+<div class="attack-card" id="session">
+  <div class="attack-header">
+    <div class="attack-num">5</div>
+    <div class="attack-title">
+      <h2>Session 模式 — 這個工作在哪個對話脈絡裡執行</h2>
+      <div class="sub">main / isolated / current / session:&lt;id&gt;</div>
+    </div>
+    <div class="badges"><span class="badge high">重要</span><span class="badge browser">脈絡</span></div>
+  </div>
+  <p class="desc"><strong><code>main</code></strong>：把系統事件排進排程的喚醒頻道，適合<strong>提醒類</strong>工作。<br>
+  <strong><code>isolated</code></strong>：專屬的 Agent 輪次、全新 session，<strong>每次執行都重設對話脈絡</strong>——適合報告與背景任務，也是 <code>cron create</code> 的預設。<br>
+  <strong><code>current</code></strong>：綁定建立這個工作時的互動 session 脈絡。<br>
+  <strong><code>session:&lt;id&gt;</code>（自訂）</strong>：跨多次執行<strong>保留脈絡</strong>，適合每日 standup 這類需要記得上次講到哪的流程。</p>
+  <div class="note-box">ℹ️ <strong>成本與品質的權衡：</strong><code>isolated</code> 每次從零開始 → 便宜、可預測，但不知道上下文；<code>session:&lt;id&gt;</code> 有連續性 → 能接續，但 context 會隨時間變長。日報用 isolated，多輪推進的專案追蹤用自訂 session。</div>
+</div>
+
+<!-- 6 -->
+<div class="attack-card" id="delivery">
+  <div class="attack-header">
+    <div class="attack-num">6</div>
+    <div class="attack-title">
+      <h2>傳遞與路由 — 結果送到哪裡去</h2>
+      <div class="sub">announce / webhook / none，以及 NO_REPLY 的抑制行為</div>
+    </div>
+    <div class="badges"><span class="badge high">實務</span><span class="badge network">傳遞</span></div>
+  </div>
+  <div class="cbw">
+    <span class="code-lbl">傳遞旗標</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+--announce           # 若 Agent 自己沒送訊息，備援傳送到目標頻道
+--webhook &lt;url&gt;      # 把完成 payload POST 到 HTTP 端點
+--none               # 不做 executor 層級的備援傳遞
+--no-deliver         # 停用傳送
+
+# 指定目標
+--channel slack     --to "channel:C123"
+--channel telegram  --to "-1001234567890"
+--thread-id &lt;id&gt;    --account &lt;acct&gt;
+</code></pre>
+  </div>
+  <p class="desc">隔離式的 <code>cron add</code> 工作<strong>預設使用 <code>--announce</code> 傳送</strong>。announce 模式會先嘗試直接發訊息，失敗才退回 executor 層級的通知。</p>
+
+  <div class="cs-title note">🔗 Webhook 驗證</div>
+  <p class="desc">兩種擇一：<code>Authorization: Bearer &lt;token&gt;</code>（建議）或 <code>x-openclaw-token: &lt;token&gt;</code>。<strong>放在 query string 的權杖會被拒絕。</strong>內建端點：<code>POST /hooks/wake</code>（把系統事件排入主 session）、<code>POST /hooks/agent</code>（執行隔離 Agent 輪次）、<code>POST /hooks/&lt;name&gt;</code>（自訂對應鉤子）。</p>
+
+  <div class="cs-title vuln">⚠️ 沒收到訊息的五個常見原因</div>
+  <p class="desc"><strong>①</strong> 傳遞模式是 <code>none</code>——這是預期行為（Agent 仍可自己用 <code>message</code> 工具送）。<strong>②</strong> <code>channel</code>／<code>to</code> 未設或無效 → 直接略過傳送。<strong>③</strong> Matrix 聊天室 ID <strong>區分大小寫</strong>，要用 <code>!room:server</code> 或 <code>room:!room:server</code> 格式。<strong>④</strong> 回傳 <code>unauthorized</code>／<code>Forbidden</code> → 傳遞被阻擋。<strong>⑤</strong> <strong>隔離執行回傳 <code>NO_REPLY</code> 時，OpenClaw 會抑制對外傳遞</strong>——這常是「明明跑成功卻沒收到通知」的答案。</p>
+</div>
+
+<!-- 7 -->
+<div class="attack-card" id="cli">
+  <div class="attack-header">
+    <div class="attack-num">7</div>
+    <div class="attack-title">
+      <h2>openclaw cron CLI 總覽</h2>
+      <div class="sub">十個子命令，以及最常用的旗標</div>
+    </div>
+    <div class="badges"><span class="badge medium">參考</span><span class="badge app">CLI</span></div>
+  </div>
+
+  <div class="cs-title defense">✅ 上手三個範例</div>
+  <div class="cbw">
+    <span class="code-lbl">基本用法</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain"># 一次性提醒（不呼叫模型，只排入主 session）
+openclaw cron add --name "Reminder" --at "2027-02-01T16:00:00Z" \
+  --session main --system-event "Check the draft" --wake now
+
+# 每天早上七點的隔離式摘要
+openclaw cron create "0 7 * * *" "Summarize overnight updates." \
+  --name "Morning brief" --tz "America/Los_Angeles" --session isolated
+
+# 查看、強制執行、看歷史
+openclaw cron list
+openclaw cron run &lt;jobId&gt;
+openclaw cron runs --id &lt;jobId&gt; --limit 50
+</code></pre>
+  </div>
+
+  <div class="cs-title note">📋 子命令一覽</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>子命令</th><th>用途</th><th>值得知道的旗標</th></tr></thead>
+      <tbody>
+        <tr><td><code>create</code> / <code>add</code></td><td>建立排程工作</td><td><code>--name --agent --session --at --tz --every --cron --model --fallbacks --thinking --light-context --keep-after-run --timeout-seconds --output-max-bytes</code></td></tr>
+        <tr><td><code>edit</code> / <code>update</code></td><td>修改現有工作</td><td>create 的全部旗標，加 <code>--clear-model --clear-fallbacks --clear-thinking --clear-agent --clear-channel --clear-to --best-effort-deliver</code></td></tr>
+        <tr><td><code>list</code></td><td>列出工作</td><td><code>--all</code>（含已停用）<code>--agent --json</code></td></tr>
+        <tr><td><code>get</code></td><td>取得工作 JSON 定義</td><td>—</td></tr>
+        <tr><td><code>show</code></td><td>顯示詳細資訊（人類可讀）</td><td><code>--json</code></td></tr>
+        <tr><td><code>remove</code> / <code>delete</code></td><td>刪除工作</td><td>—</td></tr>
+        <tr><td><code>run</code></td><td>手動執行</td><td><code>--due</code>（僅到期才跑）<code>--wait</code> <code>--wait-timeout</code>（預設 10m）<code>--poll-interval</code>（預設 2s）</td></tr>
+        <tr><td><code>runs</code></td><td>檢視執行歷程</td><td><code>--id --run-id --limit</code></td></tr>
+        <tr><td><code>scratch</code></td><td>管理工作私有暫存內容</td><td><code>--set --file --unset --json --expected-revision</code></td></tr>
+        <tr><td><code>status</code></td><td>排程器狀態</td><td>排錯第一站</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cs-title attack">🗒️ scratch — 被低估的功能</div>
+  <p class="desc">每個排程工作可以維護一份<strong>持久暫存文件（上限 256 KiB）</strong>，它會被<strong>附加到 prompt</strong>，作為輕量的檢查點清單，讓工作<strong>不必在每次執行之間重複處理舊項目</strong>。</p>
+  <div class="cbw">
+    <span class="code-lbl">CLI</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+openclaw cron scratch &lt;jobId&gt; --set "checklist content"
+openclaw cron scratch &lt;jobId&gt; --file ./checklist.md
+openclaw cron scratch &lt;jobId&gt; --unset
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>這解決了 isolated session 的核心弱點：</strong>每次都全新開始，就不知道上次處理到哪。scratch 給了一個「只保留結論、不保留整段對話」的中間選項——比自訂 session 便宜，又比純 isolated 有記憶。</div>
+</div>
+
+<!-- 8 -->
+<div class="attack-card" id="config">
+  <div class="attack-header">
+    <div class="attack-num">8</div>
+    <div class="attack-title">
+      <h2>設定欄位</h2>
+      <div class="sub"><code>cron</code> 命名空間下的關鍵設定</div>
+    </div>
+    <div class="badges"><span class="badge medium">參考</span><span class="badge app">設定</span></div>
+  </div>
+  <div class="cbw">
+    <span class="code-lbl">~/.openclaw/openclaw.json</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+{
+  cron: {
+    enabled: true,                        // 總開關
+    store: "~/.openclaw/cron/jobs.json",  // 工作儲存位置
+    triggers: { enabled: false },         // 條件觸發腳本／stream（預設關，見安全章節）
+    webhookToken: "replace-with-token",   // webhook 驗證權杖
+    sessionRetention: "24h"               // session 保留時間
+  }
+}
+</code></pre>
+  </div>
+  <div class="warn-box">⚠️ <strong>環境變數 <code>OPENCLAW_SKIP_CRON</code> 會讓排程整體不執行。</strong>排錯時除了看 <code>cron.enabled</code>，也要確認這個變數沒被設定。</div>
+</div>
+
+<!-- 9 -->
+<div class="attack-card" id="heartbeat">
+  <div class="attack-header">
+    <div class="attack-num">9</div>
+    <div class="attack-title">
+      <h2>Cron vs Heartbeat — 該用哪一個</h2>
+      <div class="sub">精確時間 vs 完整脈絡；而且 heartbeat 其實跑在 cron 上</div>
+    </div>
+    <div class="badges"><span class="badge critical">決策</span><span class="badge browser">對比</span></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>面向</th><th>排程工作（Cron）</th><th>心跳偵測（Heartbeat）</th></tr></thead>
+      <tbody>
+        <tr><td>時間精準度</td><td>精確（運算式／一次性）</td><td class="prt">近似（預設 30 分鐘）</td></tr>
+        <tr><td>執行脈絡</td><td>隔離或共享，可選</td><td>完整的主 session 脈絡</td></tr>
+        <tr><td>任務紀錄（task record）</td><td class="chk">一律建立</td><td class="crs">從不建立</td></tr>
+        <tr><td>典型用途</td><td>日報、一次性提醒、背景工作</td><td>收信匣巡檢、行事曆檢視</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="desc"><strong>選擇原則：</strong>需要精確時間的報告與背景工作 → 排程工作；受益於完整 session 脈絡、時間不必精準的監看 → 心跳偵測。</p>
+
+  <div class="cs-title note">🔗 兩者其實是連動的</div>
+  <p class="desc">心跳偵測是<strong>由系統擁有的排程器工作</strong>來執行的 —— 這帶來一個實務結論：<strong>若 <code>cron.enabled: false</code>，心跳也會一起停止執行</strong>。</p>
+  <div class="cbw">
+    <span class="code-lbl">heartbeat 設定</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+agents: {
+  defaults: {
+    heartbeat: {
+      every: "30m",           // 預設 30m（OAuth／token 認證時為 1h）
+      target: "last",
+      isolatedSession: true,  // 大幅降低成本（見下）
+      lightContext: true
+    }
+  }
+}
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>成本差距很誇張：</strong>官方指出使用 <code>isolatedSession: true</code> 可讓每次心跳的 token 消耗<strong>從約 100K 降到 2–5K</strong>（因為不帶完整對話歷史）。回應約定是：無事時回 <code>HEARTBEAT_OK</code>，有事則用 <code>heartbeat_respond</code> 帶警示內容；預設會<strong>抑制 OK、只顯示警示</strong>。若三個可見性旗標全為 false，執行會直接略過。</div>
+</div>
+
+<!-- 10 -->
+<div class="attack-card" id="tasks">
+  <div class="attack-header">
+    <div class="attack-num">10</div>
+    <div class="attack-title">
+      <h2>背景任務帳本 — cron 跑了什麼，去哪裡看</h2>
+      <div class="sub">tasks 是「紀錄」不是「排程器」</div>
+    </div>
+    <div class="badges"><span class="badge medium">觀測</span><span class="badge app">工具</span></div>
+  </div>
+  <p class="desc">背景任務追蹤的是<strong>在主要對話 session 之外執行的工作</strong>：ACP 執行、子代理生成、<strong>所有排程工作的執行</strong>、CLI 發起的操作、以及 session 型的媒體生成。官方強調 <strong>tasks 是日誌，不是排程器</strong>——它記錄發生了什麼與何時，何時該跑則由 cron 與 heartbeat 決定。</p>
+  <div class="cbw">
+    <span class="code-lbl">生命週期與指令</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+queued → running → terminal (succeeded / failed / timed_out / cancelled / lost)
+
+openclaw tasks list            # 列出（可篩選）
+openclaw tasks show &lt;lookup&gt;   # 完整細節
+openclaw tasks cancel &lt;lookup&gt; # 中止進行中的任務
+openclaw tasks audit           # 健康檢查，回報問題
+/tasks                         # 對話中的面板：本 session 相關的背景工作
+</code></pre>
+  </div>
+  <p class="desc"><strong>保留期：</strong>終端狀態的任務紀錄保留 <strong>7 天</strong>（<code>lost</code> 為 24 小時）後自動刪除；自動維護每 60 秒執行一次（對帳、session 修復、標記清理與修剪）。</p>
+  <div class="warn-box">⚠️ <strong>一般互動對話與心跳輪次不會建立 task 紀錄。</strong>所以 <code>tasks list</code> 看不到心跳——要查心跳得看 log，這也是上一節「心跳從不建立任務紀錄」的另一面。</div>
+</div>
+
+<!-- 11 -->
+<div class="attack-card" id="retry">
+  <div class="attack-header">
+    <div class="attack-num">11</div>
+    <div class="attack-title">
+      <h2>重試、逾時與預算上限</h2>
+      <div class="sub">指數退避、各種 timeout 的實際數字</div>
+    </div>
+    <div class="badges"><span class="badge high">維運</span><span class="badge network">限制</span></div>
+  </div>
+
+  <div class="cs-title note">🔁 重試與退避</div>
+  <p class="desc"><strong>單次工作：</strong>暫時性錯誤（速率限制、網路、逾時）採用內建重試排程；<strong>永久性錯誤會立即停用該工作</strong>。<br>
+  <strong>週期性工作：</strong>連續執行錯誤採<strong>指數退避 30 秒 → 1 分 → 5 分 → 15 分 → 60 分</strong>，下次成功執行後重設。系統會把「略過（skipped）」與「錯誤」分開統計。</p>
+
+  <div class="cs-title vuln">⏱️ 逾時與預算（官方數字）</div>
+  <div class="cbw">
+    <span class="code-lbl">限制一覽</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+隔離 Agent 輪次逾時    預設 60 分鐘（監控逾時優先於底層 agent 逾時）
+命令型工作逾時         預設 10 分鐘
+觸發腳本預算           30 秒實際經過時間，最多 5 次工具呼叫
+腳本 payload           最多 300 秒（可設至上限 900 秒），
+                       50 次工具呼叫預算（上限 200）
+狀態儲存               單筆上限 16 KB；失敗的執行不會保存回傳狀態
+scratch 文件           上限 256 KiB
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>一次性工作的清理行為：</strong><code>--at</code> 建立的工作在<strong>成功後會自動刪除</strong>，除非加上 <code>--keep-after-run</code>。所以「我的提醒跑完就不見了」是正常的。</div>
+</div>
+
+<!-- 12 -->
+<div class="attack-card" id="security">
+  <div class="attack-header">
+    <div class="attack-num">12</div>
+    <div class="attack-title">
+      <h2>安全紅線 — cron.triggers 等同無人值守的 exec</h2>
+      <div class="sub">這是整份文件語氣最重的一段警告</div>
+    </div>
+    <div class="badges"><span class="badge critical">高風險</span><span class="badge network">安全</span></div>
+  </div>
+  <div class="warn-box">⚠️ <strong>啟用 <code>cron.triggers.enabled: true</code> 之後</strong>，條件觸發腳本與腳本承載內容可在<strong>無介面模式下使用所屬 Agent 的完整工具政策，包括 <code>exec</code></strong>。官方要求把這視為<strong>「以該 Agent 權限進行的無人值守程式碼執行」</strong>——除非所有<strong>獲准建立排程工作的 Agent 都同樣可信</strong>，否則應保持停用。</div>
+  <p class="desc">值得拆開想的是這句話的完整含義：風險不只是「腳本會執行」，而是<strong>任何能建立排程工作的 Agent，都獲得了一條在無人看管時間點、以自身完整權限執行程式碼的路徑</strong>。多 Agent 環境下，這等於把信任邊界從「單一 Agent」擴大到「所有能排程的 Agent 集合」。</p>
+  <div class="cs-title defense">✅ 其他安全實務</div>
+  <p class="desc"><strong>Webhook 權杖：</strong>用 <code>Authorization: Bearer</code>（建議）或 <code>x-openclaw-token</code>，<strong>query string 權杖會被拒絕</strong>——不要試圖把 token 放在 URL 裡。<strong>命令型工作在 gateway 主機上執行</strong>，不是在沙箱裡，所以 <code>--command</code> 的內容應視為主機層級操作來審查。</p>
+</div>
+
+<!-- 13 -->
+<div class="attack-card" id="troubleshoot">
+  <div class="attack-header">
+    <div class="attack-num">13</div>
+    <div class="attack-title">
+      <h2>疑難排解 — 排程沒觸發時的檢查順序</h2>
+      <div class="sub">官方建議的四步檢查與六個指令</div>
+    </div>
+    <div class="badges"><span class="badge high">實用</span><span class="badge app">排錯</span></div>
+  </div>
+  <div class="cs-title defense">✅ 按這個順序查</div>
+  <p class="desc"><strong>1. 排程器狀態</strong> — 確認 <code>cron.enabled: true</code>，且環境變數 <code>OPENCLAW_SKIP_CRON</code> 未設定。<br>
+  <strong>2. gateway 是否運行</strong> — 排程在 gateway 內執行，不在模型內；gateway 沒起來就不會跑。<br>
+  <strong>3. 時區設定</strong> — cron 排程確認 <code>--tz</code> 是否與主機時區相符；未指定 <code>--tz</code> 的 <code>at</code> 排程預設 UTC。<br>
+  <strong>4. 執行狀態</strong> — 跑 <code>openclaw cron runs --id &lt;jobId&gt; --limit 20</code> 查歷史；出現 <code>reason: not-due</code> 表示手動執行時工作尚未到期。</p>
+  <div class="cbw">
+    <span class="code-lbl">排錯指令組</span>
+    <button class="copy-btn" onclick="copyCode(this)">複製</button>
+    <pre><code data-lang="plain">
+openclaw status
+openclaw cron status
+openclaw cron list --all
+openclaw cron runs --id &lt;jobId&gt; --limit 20
+openclaw logs --follow
+openclaw doctor
+</code></pre>
+  </div>
+  <div class="note-box">ℹ️ <strong>「跑了但我沒收到」與「根本沒跑」是兩種不同問題。</strong><code>cron runs</code> 有紀錄 = 排程正常，問題在傳遞（回頭看第 6 節的五個原因，特別是 <code>NO_REPLY</code> 抑制與 <code>--none</code>）；<code>cron runs</code> 沒紀錄 = 問題在排程器、gateway 或時區。</div>
+</div>
+
+<!-- 比較總表 -->
+<div class="section-hdr" id="comparison">
+  <h2>📊 比較總表</h2>
+  <p>排程種類、payload、session 模式與傳遞方式的選型速查</p>
+</div>
+<div class="attack-card" style="padding:20px">
+  <div class="cs-title note">選型速查</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>我想做的事</th><th>排程</th><th>Payload</th><th>Session</th><th>傳遞</th></tr></thead>
+      <tbody>
+        <tr><td>30 分鐘後提醒我一件事</td><td><code>--at 30m</code></td><td><code>--system-event</code></td><td><code>main</code></td><td>—（排入主 session）</td></tr>
+        <tr><td>每天早上七點的隔夜摘要</td><td><code>--cron "0 7 * * *" --tz</code></td><td><code>--message</code></td><td><code>isolated</code></td><td><code>--announce</code> + channel/to</td></tr>
+        <tr><td>每天的 standup，要記得上次進度</td><td><code>--cron</code></td><td><code>--message</code></td><td><code>session:&lt;id&gt;</code></td><td><code>--announce</code></td></tr>
+        <tr><td>每小時備份／清檔</td><td><code>--every 1h</code></td><td><code>--command</code></td><td>—</td><td><code>--none</code></td></tr>
+        <tr><td>build 跑完後自動分析</td><td><code>--on-exit</code></td><td><code>--message</code> / <code>--script</code></td><td><code>isolated</code></td><td><code>--announce</code></td></tr>
+        <tr><td>把結果送進外部系統</td><td>任意</td><td>任意</td><td><code>isolated</code></td><td><code>--webhook &lt;url&gt;</code></td></tr>
+        <tr><td>收信匣巡檢（時間不必精準）</td><td class="prt">改用 Heartbeat</td><td>—</td><td>主 session</td><td>預設只顯示警示</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="divider"></div>
+  <div class="cs-title note">關鍵預設值一覽</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>項目</th><th>預設值</th><th>覆寫方式</th></tr></thead>
+      <tbody>
+        <tr><td>沒帶時區的時間戳</td><td>UTC</td><td><code>--tz &lt;IANA&gt;</code></td></tr>
+        <tr><td>沒有 <code>--tz</code> 的 cron 運算式</td><td>gateway 主機時區</td><td><code>--tz</code></td></tr>
+        <tr><td>整點 cron 抖動</td><td>0–5 分鐘隨機偏移</td><td><code>--exact</code></td></tr>
+        <tr><td>一次性工作執行後</td><td>成功即自動刪除</td><td><code>--keep-after-run</code></td></tr>
+        <tr><td>隔離 Agent 輪次逾時</td><td>60 分鐘</td><td><code>--timeout-seconds</code></td></tr>
+        <tr><td>命令型工作逾時</td><td>10 分鐘</td><td><code>--timeout-seconds</code></td></tr>
+        <tr><td><code>cron.triggers.enabled</code></td><td class="chk">false（停用）</td><td>設為 true（高風險）</td></tr>
+        <tr><td>Heartbeat 間隔</td><td>30m（OAuth/token 認證為 1h）</td><td><code>heartbeat.every</code></td></tr>
+        <tr><td>Task 紀錄保留</td><td>7 天（<code>lost</code> 24 小時）</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="attack-card">
+  <div class="cs-title note">📚 資料來源</div>
+  <p class="desc">
+    OpenClaw 官方文件（繁體中文版）：<br>
+    ・<code>docs.openclaw.ai/zh-TW/automation/cron-jobs</code> — 排程種類、payload、session、傳遞、重試、限制、疑難排解<br>
+    ・<code>docs.openclaw.ai/zh-TW/cli/cron</code> — 子命令與旗標、scratch、手動執行<br>
+    ・<code>docs.openclaw.ai/zh-TW/automation</code> — cron vs heartbeat 決策表與自動化機制總覽<br>
+    ・<code>docs.openclaw.ai/zh-TW/gateway/heartbeat</code> — heartbeat 設定、成本、可見性與 scratch<br>
+    ・<code>docs.openclaw.ai/zh-TW/automation/tasks</code> — 背景任務帳本、生命週期與保留期
+  </p>
+</div>
+
+<footer>OpenClaw Cron 排程完整解析 ｜ 產生時間：2026-08-20 20:18</footer>
+</main>
+</div>
+<script>
+// ===== Sidebar Toggle (Mobile) =====
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const btn = document.getElementById('menuBtn');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+  const open = sidebar.classList.contains('open');
+  document.body.classList.toggle('nav-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.classList.remove('nav-open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+}
+
+// ===== Theme =====
+function toggleTheme() {
+  const h = document.documentElement;
+  const b = document.getElementById('themeBtn');
+  if (h.dataset.theme === 'dark') {
+    h.dataset.theme = 'light'; b.textContent = '🌙';
+    localStorage.setItem('openclaw-cron-theme', 'light');
+  } else {
+    h.dataset.theme = 'dark'; b.textContent = '☀️';
+    localStorage.setItem('openclaw-cron-theme', 'dark');
+  }
+}
+(function restoreTheme() {
+  if (localStorage.getItem('openclaw-cron-theme') === 'light') {
+    document.documentElement.dataset.theme = 'light';
+    document.getElementById('themeBtn').textContent = '🌙';
+  }
+})();
+
+// ===== Copy Code =====
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  const text = pre.querySelector('code').textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '已複製！';
+    setTimeout(() => btn.textContent = '複製', 1600);
+  });
+}
+
+// ===== Python Syntax Highlighting =====
+const KW = new Set(['def','class','import','from','if','else','elif','return',
+  'True','False','None','and','or','not','in','is','try','except','raise',
+  'with','as','for','while','break','continue','pass','lambda','yield',
+  'async','await','global','del','assert','finally','nonlocal']);
+const BI = new Set(['print','len','str','int','float','bool','list','dict','set',
+  'tuple','range','open','type','isinstance','hasattr','getattr','setattr',
+  'super','object','enumerate','zip','map','filter','sorted','any','all',
+  'sum','min','max','abs','next','iter','staticmethod','classmethod','property']);
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hlPython(raw) {
+  const out = []; let i = 0;
+  while (i < raw.length) {
+    const c = raw[i];
+    if (c === '#') {
+      let e = raw.indexOf('\n', i); if (e < 0) e = raw.length;
+      out.push(`<span class="cm">${esc(raw.slice(i, e))}</span>`); i = e; continue;
+    }
+    if (c === '"' || c === "'") {
+      const q3 = raw.slice(i, i+3);
+      if (q3 === '"""' || q3 === "'''") {
+        let e = raw.indexOf(q3, i+3); if (e < 0) e = raw.length - 3;
+        out.push(`<span class="st">${esc(raw.slice(i, e+3))}</span>`); i = e+3; continue;
+      }
+      let j = i+1;
+      while (j < raw.length && raw[j] !== c && raw[j] !== '\n') { if (raw[j]==='\\') j++; j++; }
+      out.push(`<span class="st">${esc(raw.slice(i, j+1))}</span>`); i = j+1; continue;
+    }
+    if (c === '@') {
+      const m = raw.slice(i).match(/^@[\w.]+/);
+      if (m) { out.push(`<span class="dec">${esc(m[0])}</span>`); i += m[0].length; continue; }
+    }
+    if (/[a-zA-Z_]/.test(c)) {
+      const m = raw.slice(i).match(/^[a-zA-Z_]\w*/)[0];
+      const cls = KW.has(m) ? 'kw' : BI.has(m) ? 'bi' : null;
+      out.push(cls ? `<span class="${cls}">${esc(m)}</span>` : esc(m));
+      i += m.length; continue;
+    }
+    if (/[0-9]/.test(c)) {
+      const m = raw.slice(i).match(/^[0-9]+(\.[0-9]+)?/)[0];
+      out.push(`<span class="nu">${esc(m)}</span>`); i += m.length; continue;
+    }
+    out.push(esc(c)); i++;
+  }
+  return out.join('');
+}
+
+document.querySelectorAll('code[data-lang]').forEach(el => {
+  const lang = el.dataset.lang;
+  const raw = el.textContent;
+  el.innerHTML = lang === 'python' ? hlPython(raw) : esc(raw);
+});
+
+// ===== Active sidebar link =====
+const cards = [...document.querySelectorAll('.attack-card[id]'), document.getElementById('comparison')].filter(Boolean);
+const links = document.querySelectorAll('.sidebar a');
+window.addEventListener('scroll', () => {
+  let active = '';
+  cards.forEach(c => { if (c.getBoundingClientRect().top <= 100) active = c.id; });
+  links.forEach(a => {
+    const match = a.getAttribute('href').slice(1) === active;
+    a.classList.toggle('active', match);
+  });
+}, { passive: true });
+
+// 手機點連結後自動關閉 sidebar
+links.forEach(a => a.addEventListener('click', () => {
+  if (window.innerWidth <= 768) closeSidebar();
+}));
+</script>
+</body>
+</html>
